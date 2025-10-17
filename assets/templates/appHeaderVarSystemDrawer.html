@@ -48,6 +48,91 @@
           <i class="fa-solid fa-gear"></i>
           <b data-i18n="Settings">设置</b>
         </div>
+        <div
+          id="var_system_template_section"
+          style="
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid var(--SmartThemeBorderColor, #333);
+            border-radius: 6px;
+            padding: 10px;
+          "
+        >
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <div style="display: flex; align-items: center; gap: 8px">
+                <b data-i18n="Template Editor">模板编辑器</b>
+                <label
+                  for="var_system_template_enabled"
+                  style="display: flex; align-items: center; gap: 4px"
+                >
+                  <input
+                    id="var_system_template_enabled"
+                    type="checkbox"
+                    style="width: 14px; height: 14px"
+                  />
+                  <span data-i18n="Enable variable system">启用变量系统</span>
+                </label>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap">
+                <button
+                  id="var_system_template_reload"
+                  class="menu_button interactable"
+                  type="button"
+                  style="padding: 4px 8px"
+                >
+                  <span data-i18n="Reload">重新加载</span>
+                </button>
+                <button
+                  id="var_system_template_discard"
+                  class="menu_button interactable"
+                  type="button"
+                  style="padding: 4px 8px"
+                >
+                  <span data-i18n="Reset changes">重置更改</span>
+                </button>
+                <button
+                  id="var_system_template_clear"
+                  class="menu_button interactable"
+                  type="button"
+                  style="padding: 4px 8px"
+                >
+                  <span data-i18n="Clear template">清空模板</span>
+                </button>
+                <button
+                  id="var_system_template_save"
+                  class="menu_button interactable"
+                  type="button"
+                  style="padding: 4px 8px"
+                >
+                  <span data-i18n="Save template">保存模板</span>
+                </button>
+              </div>
+            </div>
+            <div
+              id="var_system_template_status"
+              style="font-size: 12px; color: var(--SmartThemeBodyColor, #aaa)"
+            >
+              <span data-i18n="Template status idle">尚未加载模板</span>
+            </div>
+          </div>
+          <div
+            id="var_system_template_editor"
+            style="
+              min-height: 220px;
+              border: 1px solid var(--SmartThemeBorderColor, #333);
+              border-radius: 4px;
+              overflow: hidden;
+            "
+          ></div>
+        </div>
       </div>
     </div>
   </div>

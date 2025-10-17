@@ -1,7 +1,669 @@
-import { renderExtensionTemplateAsync } from "/scripts/extensions.js";
+import { event_types, eventSource } from "/scripts/events.js";
+import {
+  getContext,
+  renderExtensionTemplateAsync,
+  writeExtensionField,
+} from "/scripts/extensions.js";
 
 const EXTENSION_NAMESPACE = "st-var-system";
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";
+const TEMPLATE_EXTENSION_KEY = "st_var_system";
+const TEMPLATE_EDITOR_CONTAINER_ID = "var_system_template_editor";
+const TEMPLATE_STATUS_ID = "var_system_template_status";
+const TEMPLATE_SAVE_ID = "var_system_template_save";
+const TEMPLATE_DISCARD_ID = "var_system_template_discard";
+const TEMPLATE_RELOAD_ID = "var_system_template_reload";
+const TEMPLATE_CLEAR_ID = "var_system_template_clear";
+const TEMPLATE_ENABLED_TOGGLE_ID = "var_system_template_enabled";
+
+const templateState = {
+  editor: null,
+  silentUpdate: false,
+  dirty: false,
+  hasErrors: false,
+  loading: false,
+  currentDraft: null,
+  loadedTemplate: null,
+  templateMeta: null,
+  currentCharacterId: null,
+  enabled: false,
+};
+
+let jsonEditorAssetPromise = null;
+let templateButtons = null;
+
+const STATUS_COLORS = {
+  success: "#6ee7b7",
+  error: "#fca5a5",
+  warn: "#fbbf24",
+  info: "var(--SmartThemeBodyColor, #aaa)",
+};
+
+function bindTemplateSection(rootElement) {
+  if (!rootElement || templateButtons) {
+    return;
+  }
+
+  templateButtons = {
+    save: rootElement.querySelector(`#${TEMPLATE_SAVE_ID}`),
+    discard: rootElement.querySelector(`#${TEMPLATE_DISCARD_ID}`),
+    reload: rootElement.querySelector(`#${TEMPLATE_RELOAD_ID}`),
+    status: rootElement.querySelector(`#${TEMPLATE_STATUS_ID}`),
+    clear: rootElement.querySelector(`#${TEMPLATE_CLEAR_ID}`),
+    enableToggle: rootElement.querySelector(`#${TEMPLATE_ENABLED_TOGGLE_ID}`),
+  };
+
+  templateButtons.save?.addEventListener("click", () => {
+    void saveCurrentTemplate();
+  });
+
+  templateButtons.discard?.addEventListener("click", () => {
+    discardTemplateChanges();
+  });
+
+  templateButtons.reload?.addEventListener("click", () => {
+    void refreshTemplateForActiveCharacter(true);
+  });
+
+  templateButtons.clear?.addEventListener("click", () => {
+    void clearTemplateForActiveCharacter();
+  });
+
+  templateButtons.enableToggle?.addEventListener("change", (event) => {
+    const isChecked = Boolean(event.target?.checked);
+    void setEnabledForActiveCharacter(isChecked);
+  });
+
+  updateTemplateStatus("尚未加载模板", "info");
+  updateTemplateControls();
+  updateEnableToggleUI();
+}
+
+function updateTemplateStatus(message, level = "info") {
+  const element =
+    templateButtons?.status || document.getElementById(TEMPLATE_STATUS_ID);
+  if (!element) {
+    return;
+  }
+
+  element.textContent = message ?? "";
+  element.style.color = STATUS_COLORS[level] ?? STATUS_COLORS.info;
+}
+
+function updateTemplateControls() {
+  if (!templateButtons) {
+    return;
+  }
+
+  const disableAll = templateState.loading || !templateState.currentDraft;
+
+  if (templateButtons.save) {
+    templateButtons.save.disabled =
+      disableAll || templateState.hasErrors || !templateState.dirty;
+  }
+
+  if (templateButtons.discard) {
+    templateButtons.discard.disabled =
+      disableAll || !templateState.loadedTemplate || !templateState.dirty;
+  }
+
+  if (templateButtons.reload) {
+    templateButtons.reload.disabled = templateState.loading;
+  }
+
+  if (templateButtons.clear) {
+    templateButtons.clear.disabled =
+      templateState.loading || !templateState.loadedTemplate;
+  }
+
+  updateEnableToggleUI();
+}
+
+function updateEnableToggleUI() {
+  if (!templateButtons?.enableToggle) {
+    return;
+  }
+
+  const shouldDisable =
+    templateState.loading || !templateState.currentCharacterId;
+  templateButtons.enableToggle.disabled = shouldDisable;
+  templateButtons.enableToggle.checked = Boolean(templateState.enabled);
+}
+
+function cloneTemplate(value) {
+  if (value == null) {
+    return value;
+  }
+
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value));
+}
+
+function buildExtensionPayload({
+  templateBody = templateState.loadedTemplate,
+  templateId = templateState.templateMeta?.templateId ?? null,
+  updatedAt = templateState.templateMeta?.updatedAt ?? null,
+  enabled = templateState.enabled,
+  includeTemplate = templateBody !== null && templateBody !== undefined,
+} = {}) {
+  const payload = {
+    enabled: Boolean(enabled),
+  };
+
+  if (templateId) {
+    payload.templateId = templateId;
+  }
+
+  if (includeTemplate && templateBody !== undefined && templateBody !== null) {
+    payload.templateBody = cloneTemplate(templateBody);
+  }
+
+  if (includeTemplate && updatedAt !== undefined && updatedAt !== null) {
+    payload.updatedAt = updatedAt;
+  }
+
+  return payload;
+}
+
+function buildDefaultTemplate(character) {
+  return {
+    metadata: {
+      name: character?.name ?? "",
+      createdAt: new Date().toISOString(),
+      version: 1,
+    },
+    variables: {},
+  };
+}
+
+function generateTemplateId(character) {
+  if (character?.avatar) {
+    return `avatar:${character.avatar}`;
+  }
+
+  if (character?.name) {
+    return `name:${character.name}`;
+  }
+
+  if (globalThis.crypto?.randomUUID) {
+    return `uuid:${globalThis.crypto.randomUUID()}`;
+  }
+
+  return `uuid:${Date.now().toString(36)}`;
+}
+
+function formatTimestamp(timestamp) {
+  if (!timestamp) {
+    return "";
+  }
+
+  try {
+    return new Date(timestamp).toLocaleString();
+  } catch (_error) {
+    return String(timestamp);
+  }
+}
+
+function injectResource(tagName, attributes) {
+  return new Promise((resolve, reject) => {
+    const element = document.createElement(tagName);
+
+    Object.entries(attributes).forEach(([key, value]) => {
+      element[key] = value;
+    });
+
+    element.addEventListener("load", () => resolve());
+    element.addEventListener("error", (event) => reject(event));
+
+    document.head.appendChild(element);
+  });
+}
+
+function ensureJsonEditorAssets() {
+  if (globalThis.JSONEditor) {
+    return Promise.resolve();
+  }
+
+  if (!jsonEditorAssetPromise) {
+    jsonEditorAssetPromise = Promise.all([
+      injectResource("link", {
+        rel: "stylesheet",
+        href: "https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@0.23.7/dist/standalone.css",
+      }),
+      injectResource("script", {
+        src: "https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@0.23.7/dist/standalone.js",
+        async: true,
+      }),
+    ]).then(() => {
+      if (!globalThis.JSONEditor) {
+        throw new Error("JSONEditor 未成功加载");
+      }
+    });
+  }
+
+  return jsonEditorAssetPromise;
+}
+
+async function ensureEditorInstance() {
+  if (templateState.editor) {
+    return templateState.editor;
+  }
+
+  const container = document.getElementById(TEMPLATE_EDITOR_CONTAINER_ID);
+
+  if (!container) {
+    return null;
+  }
+
+  try {
+    await ensureJsonEditorAssets();
+  } catch (error) {
+    updateTemplateStatus(
+      `编辑器资源加载失败：${error?.message ?? error}`,
+      "error",
+    );
+    console.error(EXTENSION_LOG_PREFIX, "加载 JSON 编辑器失败", error);
+    return null;
+  }
+
+  const { JSONEditor } = globalThis;
+
+  if (!JSONEditor) {
+    updateTemplateStatus("JSON 编辑器仍未可用，请稍后重试。", "error");
+    return null;
+  }
+
+  // JSONEditor 构造会直接接管容器节点。
+  templateState.editor = new JSONEditor({
+    target: container,
+    props: {
+      content: { json: templateState.currentDraft ?? {} },
+      mainMenuBar: false,
+      navigationBar: false,
+      statusBar: false,
+      onChange: handleEditorChange,
+      modes: ["tree", "text"],
+    },
+  });
+
+  return templateState.editor;
+}
+
+function setEditorContent(json) {
+  if (!templateState.editor) {
+    return;
+  }
+
+  templateState.silentUpdate = true;
+  templateState.editor.set({ json });
+  templateState.silentUpdate = false;
+}
+
+function handleEditorChange(content, _previousContent, metadata) {
+  if (templateState.silentUpdate) {
+    return;
+  }
+
+  const hasErrors =
+    Boolean(metadata?.contentErrors?.length) || content?.json === undefined;
+
+  templateState.hasErrors = hasErrors;
+  templateState.dirty = true;
+
+  if (!hasErrors && content?.json !== undefined) {
+    templateState.currentDraft = content.json;
+  }
+
+  updateTemplateControls();
+  updateTemplateStatus(
+    hasErrors ? "JSON 无法解析，请检查错误。" : "模板已修改，尚未保存。",
+    hasErrors ? "error" : "warn",
+  );
+}
+
+function discardTemplateChanges() {
+  if (!templateState.loadedTemplate) {
+    updateTemplateStatus("没有可恢复的模板版本。", "warn");
+    return;
+  }
+
+  if (!templateState.editor) {
+    return;
+  }
+
+  templateState.currentDraft = cloneTemplate(templateState.loadedTemplate);
+  setEditorContent(cloneTemplate(templateState.loadedTemplate));
+  templateState.dirty = false;
+  templateState.hasErrors = false;
+  updateTemplateControls();
+  updateTemplateStatus("已恢复为最后保存的模板。", "info");
+}
+
+async function refreshTemplateForActiveCharacter(force = false) {
+  const context = getContext();
+  const activeCharacterId = context.characterId;
+
+  if (activeCharacterId == null) {
+    templateState.currentCharacterId = null;
+    templateState.loadedTemplate = null;
+    templateState.currentDraft = null;
+    templateState.templateMeta = null;
+    templateState.enabled = false;
+    updateTemplateStatus("请选择角色后再编辑模板。", "warn");
+    updateTemplateControls();
+    return;
+  }
+
+  if (!force && templateState.currentCharacterId === activeCharacterId) {
+    return;
+  }
+
+  templateState.loading = true;
+  updateTemplateControls();
+  updateTemplateStatus("模板加载中……", "info");
+
+  try {
+    await ensureEditorInstance();
+
+    const character = context.characters?.[activeCharacterId];
+    const extensionData =
+      character?.data?.extensions?.[TEMPLATE_EXTENSION_KEY] ?? null;
+
+    const hasTemplate = Boolean(extensionData?.templateBody);
+    const templateId =
+      extensionData?.templateId || generateTemplateId(character);
+    const resolvedTemplate = hasTemplate
+      ? cloneTemplate(extensionData.templateBody)
+      : buildDefaultTemplate(character);
+
+    templateState.currentCharacterId = activeCharacterId;
+    templateState.loadedTemplate = hasTemplate
+      ? cloneTemplate(resolvedTemplate)
+      : null;
+    templateState.currentDraft = cloneTemplate(resolvedTemplate);
+    templateState.templateMeta = {
+      templateId,
+      updatedAt: extensionData?.updatedAt ?? null,
+    };
+    const resolvedEnabled =
+      typeof extensionData?.enabled === "boolean"
+        ? extensionData.enabled
+        : hasTemplate;
+    templateState.enabled = Boolean(resolvedEnabled);
+    templateState.dirty = !hasTemplate;
+    templateState.hasErrors = false;
+
+    if (templateState.editor) {
+      setEditorContent(cloneTemplate(resolvedTemplate));
+    }
+
+    const statusMessage = hasTemplate
+      ? `模板已加载（最后更新：${formatTimestamp(extensionData?.updatedAt) || "未知"}）。`
+      : "已为该角色准备默认模板，请完善后保存。";
+
+    updateTemplateStatus(statusMessage, hasTemplate ? "info" : "warn");
+  } catch (error) {
+    console.error(EXTENSION_LOG_PREFIX, "加载模板失败", error);
+    updateTemplateStatus(`加载模板失败：${error?.message ?? error}`, "error");
+  } finally {
+    templateState.loading = false;
+    updateTemplateControls();
+  }
+}
+
+async function persistTemplateToPlugin(templateId, templateBody) {
+  const context = getContext();
+  const headers = {
+    ...context.getRequestHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  const response = await fetch(
+    "/api/plugins/var-manager/var-manager/templates",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        characterName: templateId,
+        template: templateBody,
+      }),
+    },
+  );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || response.statusText);
+  }
+
+  return response.json().catch(() => null);
+}
+
+async function setEnabledForActiveCharacter(nextEnabled) {
+  const context = getContext();
+  const characterId = context.characterId;
+
+  if (characterId == null) {
+    updateTemplateStatus("未选择角色，无法修改启用状态。", "error");
+    updateEnableToggleUI();
+    return;
+  }
+
+  if (templateState.loading) {
+    updateEnableToggleUI();
+    return;
+  }
+
+  const previousValue = templateState.enabled;
+  templateState.enabled = Boolean(nextEnabled);
+  templateState.loading = true;
+  updateTemplateControls();
+  updateTemplateStatus(
+    templateState.enabled ? "正在启用变量系统……" : "正在停用变量系统……",
+    "info",
+  );
+
+  try {
+    const includeTemplate = templateState.loadedTemplate !== null;
+    const payload = buildExtensionPayload({
+      includeTemplate,
+      enabled: templateState.enabled,
+    });
+
+    if (!payload.templateId) {
+      const character = context.characters?.[characterId];
+      payload.templateId =
+        templateState.templateMeta?.templateId ?? generateTemplateId(character);
+    }
+
+    await writeExtensionField(characterId, TEMPLATE_EXTENSION_KEY, payload);
+
+    templateState.templateMeta = {
+      templateId: payload.templateId ?? null,
+      updatedAt: templateState.templateMeta?.updatedAt ?? null,
+    };
+
+    updateTemplateStatus(
+      templateState.enabled
+        ? "变量系统已为该角色启用。"
+        : "变量系统已为该角色停用。",
+      "success",
+    );
+  } catch (error) {
+    console.error(EXTENSION_LOG_PREFIX, "更新启用状态失败", error);
+    templateState.enabled = previousValue;
+    updateTemplateStatus(
+      `更新启用状态失败：${error?.message ?? error}`,
+      "error",
+    );
+  } finally {
+    templateState.loading = false;
+    updateEnableToggleUI();
+    updateTemplateControls();
+  }
+}
+
+async function clearTemplateForActiveCharacter() {
+  const context = getContext();
+  const characterId = context.characterId;
+
+  if (characterId == null) {
+    updateTemplateStatus("未选择角色，无法清空模板。", "error");
+    return;
+  }
+
+  if (!templateState.loadedTemplate) {
+    updateTemplateStatus("当前没有保存的模板，无需清空。", "info");
+    return;
+  }
+
+  const confirmationMessage =
+    "确定要清空模板吗？这会从角色卡中移除模板字段，但不会改变启用状态。";
+  const confirmed =
+    window.confirm?.(confirmationMessage) ?? confirm(confirmationMessage);
+
+  if (!confirmed) {
+    updateTemplateStatus("已取消清空模板。", "info");
+    return;
+  }
+
+  templateState.loading = true;
+  updateTemplateControls();
+  updateTemplateStatus("正在清空模板……", "info");
+
+  try {
+    const payload = buildExtensionPayload({
+      includeTemplate: false,
+      enabled: templateState.enabled,
+      templateId: templateState.templateMeta?.templateId ?? null,
+    });
+
+    if (!payload.templateId) {
+      const character = context.characters?.[characterId];
+      payload.templateId = generateTemplateId(character);
+    }
+
+    await writeExtensionField(characterId, TEMPLATE_EXTENSION_KEY, payload);
+
+    const character = context.characters?.[characterId];
+    const editor = await ensureEditorInstance();
+    const defaultTemplate = buildDefaultTemplate(character);
+
+    templateState.loadedTemplate = null;
+    templateState.currentDraft = cloneTemplate(defaultTemplate);
+    templateState.templateMeta = {
+      templateId: payload.templateId,
+      updatedAt: null,
+    };
+    templateState.dirty = true;
+    templateState.hasErrors = false;
+
+    if (editor) {
+      setEditorContent(cloneTemplate(defaultTemplate));
+    }
+
+    updateTemplateStatus(
+      "模板字段已清空，编辑器已恢复默认骨架，请视需要重新保存。",
+      "warn",
+    );
+  } catch (error) {
+    console.error(EXTENSION_LOG_PREFIX, "清空模板失败", error);
+    updateTemplateStatus(`清空模板失败：${error?.message ?? error}`, "error");
+  } finally {
+    templateState.loading = false;
+    updateTemplateControls();
+  }
+}
+
+async function saveCurrentTemplate() {
+  if (templateState.hasErrors) {
+    updateTemplateStatus("存在未解决的 JSON 错误，无法保存。", "error");
+    return;
+  }
+
+  const editor = await ensureEditorInstance();
+
+  if (!editor) {
+    updateTemplateStatus("编辑器尚未准备就绪。", "error");
+    return;
+  }
+
+  const content = editor.get();
+  const json = content?.json;
+
+  if (json === undefined) {
+    updateTemplateStatus("请修复模板中的错误后再保存。", "error");
+    return;
+  }
+
+  const context = getContext();
+  const characterId = context.characterId;
+
+  if (characterId == null) {
+    updateTemplateStatus("未选择角色，无法保存模板。", "error");
+    return;
+  }
+
+  const character = context.characters?.[characterId];
+  const templateId =
+    templateState.templateMeta?.templateId || generateTemplateId(character);
+  const payload = {
+    templateId,
+    templateBody: json,
+    updatedAt: Date.now(),
+    enabled: templateState.enabled,
+  };
+
+  templateState.loading = true;
+  updateTemplateControls();
+  updateTemplateStatus("模板保存中……", "info");
+
+  try {
+    await writeExtensionField(characterId, TEMPLATE_EXTENSION_KEY, payload);
+
+    let pluginFailed = false;
+
+    try {
+      await persistTemplateToPlugin(templateId, json);
+    } catch (pluginError) {
+      console.warn(EXTENSION_LOG_PREFIX, "模板写入服务器失败", pluginError);
+      updateTemplateStatus(
+        `模板已保存到角色卡，但写入服务器失败：${pluginError?.message ?? pluginError}`,
+        "warn",
+      );
+      pluginFailed = true;
+    }
+
+    templateState.loadedTemplate = cloneTemplate(json);
+    templateState.currentDraft = cloneTemplate(json);
+    templateState.templateMeta = {
+      templateId,
+      updatedAt: payload.updatedAt,
+    };
+    templateState.dirty = false;
+    templateState.hasErrors = false;
+
+    if (!pluginFailed) {
+      updateTemplateStatus("模板已保存。", "success");
+    }
+  } catch (error) {
+    console.error(EXTENSION_LOG_PREFIX, "保存模板失败", error);
+    updateTemplateStatus(`保存模板失败：${error?.message ?? error}`, "error");
+  } finally {
+    templateState.loading = false;
+    updateTemplateControls();
+  }
+}
+
+function onContextChanged() {
+  void refreshTemplateForActiveCharacter(true);
+}
 
 function animateDrawer(element, shouldOpen) {
   const editor = window.EDITOR;
@@ -113,16 +775,27 @@ async function injectAppHeaderEntry() {
     console.log(`${EXTENSION_LOG_PREFIX} 打开设置`);
   });
 
+  bindTemplateSection($drawer.get(0));
+
+  await refreshTemplateForActiveCharacter(true);
+
   console.log(`${EXTENSION_LOG_PREFIX} 自定义入口已注入`);
 }
 
 async function initExtension() {
   console.log(`${EXTENSION_LOG_PREFIX} (${EXTENSION_NAMESPACE}) 初始化`);
   await injectAppHeaderEntry();
+  eventSource.on(event_types.CHAT_CHANGED, onContextChanged);
+  eventSource.on(event_types.CHARACTER_EDITOR_OPENED, onContextChanged);
 }
 
 async function shutdownExtension() {
   console.log(`${EXTENSION_LOG_PREFIX} 卸载`);
+  eventSource.removeListener(event_types.CHAT_CHANGED, onContextChanged);
+  eventSource.removeListener(
+    event_types.CHARACTER_EDITOR_OPENED,
+    onContextChanged,
+  );
 }
 
 // 允许外部在需要时显式调用
