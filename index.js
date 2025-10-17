@@ -27,9 +27,15 @@ const templateState = {
   templateMeta: null,
   currentCharacterId: null,
   enabled: false,
+  editorIsFallback: false,
 };
 
+const JSON_EDITOR_VERSION = "3.10.0";
+const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/themes/jse-theme-dark.css`;
+const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/standalone.js`;
+
 let jsonEditorAssetPromise = null;
+let jsonEditorAssetFailed = false;
 let templateButtons = null;
 let pendingTemplateRefresh = null;
 
@@ -246,7 +252,10 @@ function injectResource(tagName, attributes) {
     });
 
     element.addEventListener("load", () => resolve());
-    element.addEventListener("error", (event) => reject(event));
+    element.addEventListener("error", (event) => {
+      element.remove();
+      reject(event);
+    });
 
     document.head.appendChild(element);
   });
@@ -257,21 +266,31 @@ function ensureJsonEditorAssets() {
     return Promise.resolve();
   }
 
+  if (jsonEditorAssetFailed) {
+    return Promise.reject(new Error("JSON 编辑器资源加载已失败，跳过重试。"));
+  }
+
   if (!jsonEditorAssetPromise) {
     jsonEditorAssetPromise = Promise.all([
       injectResource("link", {
         rel: "stylesheet",
-        href: "https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@0.23.7/dist/standalone.css",
+        href: JSON_EDITOR_STYLE_URL,
       }),
       injectResource("script", {
-        src: "https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@0.23.7/dist/standalone.js",
+        src: JSON_EDITOR_SCRIPT_URL,
         async: true,
       }),
-    ]).then(() => {
-      if (!globalThis.JSONEditor) {
-        throw new Error("JSONEditor 未成功加载");
-      }
-    });
+    ])
+      .then(() => {
+        if (!globalThis.JSONEditor) {
+          throw new Error("JSONEditor 未成功加载");
+        }
+      })
+      .catch((error) => {
+        jsonEditorAssetFailed = true;
+        jsonEditorAssetPromise = null;
+        throw error;
+      });
   }
 
   return jsonEditorAssetPromise;
@@ -291,22 +310,18 @@ async function ensureEditorInstance() {
   try {
     await ensureJsonEditorAssets();
   } catch (error) {
-    updateTemplateStatus(
-      `编辑器资源加载失败：${error?.message ?? error}`,
-      "error",
-    );
     console.error(EXTENSION_LOG_PREFIX, "加载 JSON 编辑器失败", error);
-    return null;
+    return ensureFallbackEditor(container);
   }
 
   const { JSONEditor } = globalThis;
 
   if (!JSONEditor) {
-    updateTemplateStatus("JSON 编辑器仍未可用，请稍后重试。", "error");
-    return null;
+    return ensureFallbackEditor(container);
   }
 
   // JSONEditor 构造会直接接管容器节点。
+  templateState.editorIsFallback = false;
   templateState.editor = new JSONEditor({
     target: container,
     props: {
@@ -330,6 +345,102 @@ function setEditorContent(json) {
   templateState.silentUpdate = true;
   templateState.editor.set({ json });
   templateState.silentUpdate = false;
+}
+
+function ensureFallbackEditor(container) {
+  if (templateState.editor && templateState.editorIsFallback) {
+    return templateState.editor;
+  }
+
+  templateState.editorIsFallback = true;
+
+  container.innerHTML = "";
+  container.style.display = "flex";
+  container.style.flexDirection = "column";
+  container.style.alignItems = "stretch";
+
+  const notice = document.createElement("div");
+  notice.style.fontSize = "12px";
+  notice.style.padding = "6px";
+  notice.style.background = "rgba(255, 255, 255, 0.05)";
+  notice.style.borderBottom = "1px solid var(--SmartThemeBorderColor, #333)";
+  notice.textContent = "JSON 编辑器资源加载失败，已降级为纯文本模式。";
+
+  const textarea = document.createElement("textarea");
+  textarea.style.width = "100%";
+  textarea.style.height = "calc(100% - 32px)";
+  textarea.style.minHeight = "220px";
+  textarea.style.background = "transparent";
+  textarea.style.color = "inherit";
+  textarea.style.border = "none";
+  textarea.style.padding = "10px";
+  textarea.style.resize = "vertical";
+  textarea.style.fontFamily = "var(--monospaceFont, monospace)";
+  textarea.style.fontSize = "13px";
+  textarea.style.lineHeight = "1.4";
+  textarea.style.borderRadius = "0";
+
+  container.appendChild(notice);
+  container.appendChild(textarea);
+
+  const handleInput = () => {
+    if (templateState.silentUpdate) {
+      return;
+    }
+
+    let parsed = undefined;
+    let contentErrors = [];
+
+    if (textarea.value.trim().length === 0) {
+      parsed = {};
+    } else {
+      try {
+        parsed = JSON.parse(textarea.value);
+      } catch (error) {
+        contentErrors = [{ message: error?.message ?? String(error) }];
+      }
+    }
+
+    const content =
+      contentErrors.length > 0 ? { json: undefined } : { json: parsed };
+    handleEditorChange(content, null, { contentErrors });
+  };
+
+  textarea.addEventListener("input", handleInput);
+
+  const fallbackEditor = {
+    isFallback: true,
+    element: textarea,
+    set({ json }) {
+      const normalized = json === undefined || json === null ? {} : json;
+      const value = JSON.stringify(normalized, null, 2);
+      textarea.value = value;
+    },
+    get() {
+      try {
+        const json = textarea.value.trim().length
+          ? JSON.parse(textarea.value)
+          : {};
+        return { json };
+      } catch (_error) {
+        return { json: undefined };
+      }
+    },
+    destroy() {
+      textarea.removeEventListener("input", handleInput);
+      container.innerHTML = "";
+    },
+  };
+
+  templateState.editor = fallbackEditor;
+
+  templateState.silentUpdate = true;
+  fallbackEditor.set({ json: templateState.currentDraft ?? {} });
+  templateState.silentUpdate = false;
+
+  updateTemplateStatus("已降级为纯文本模式，请手动编辑 JSON。", "warn");
+
+  return fallbackEditor;
 }
 
 function handleEditorChange(content, _previousContent, metadata) {
