@@ -60,23 +60,36 @@ async function injectAppHeaderEntry() {
     return;
   }
 
-  const system = window.SYSTEM;
-  if (!system?.getTemplate) {
+  const renderTemplate = window.renderExtensionTemplateAsync;
+  if (typeof renderTemplate !== "function") {
     console.warn(
-      `${EXTENSION_LOG_PREFIX} 无法获取 SYSTEM.getTemplate，跳过入口注入`,
+      `${EXTENSION_LOG_PREFIX} 找不到 renderExtensionTemplateAsync，跳过入口注入`,
     );
     return;
   }
 
-  const template = await system.getTemplate("appHeaderVarSystemDrawer");
-  if (!template) {
+  let templateHtml = null;
+  try {
+    templateHtml = await renderTemplate(
+      "third-party/ST-VarSystemExtension/assets/templates",
+      "appHeaderVarSystemDrawer",
+    );
+  } catch (error) {
     console.warn(
       `${EXTENSION_LOG_PREFIX} 模板 appHeaderVarSystemDrawer 加载失败`,
+      error,
     );
     return;
   }
 
-  const $drawer = $(template);
+  if (!templateHtml) {
+    console.warn(
+      `${EXTENSION_LOG_PREFIX} 模板 appHeaderVarSystemDrawer 返回空内容`,
+    );
+    return;
+  }
+
+  const $drawer = $(templateHtml);
   const $anchor = $("#extensions-settings-button");
   if ($anchor.length === 0) {
     console.warn(`${EXTENSION_LOG_PREFIX} 找不到扩展设置按钮，无法插入入口`);
