@@ -31,8 +31,8 @@ const templateState = {
 };
 
 const JSON_EDITOR_VERSION = "3.10.0";
-const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@3.10.0/themes/jse-theme-dark.css`;
-const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@3.10.0/standalone.js`;
+const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/themes/jse-theme-dark.css`;
+const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/standalone.js`;
 
 let jsonEditorAssetPromise = null;
 let jsonEditorAssetFailed = false;
