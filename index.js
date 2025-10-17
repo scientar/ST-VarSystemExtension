@@ -31,6 +31,7 @@ const templateState = {
 
 let jsonEditorAssetPromise = null;
 let templateButtons = null;
+let pendingTemplateRefresh = null;
 
 const STATUS_COLORS = {
   success: "#6ee7b7",
@@ -128,6 +129,35 @@ function updateEnableToggleUI() {
     templateState.loading || !templateState.currentCharacterId;
   templateButtons.enableToggle.disabled = shouldDisable;
   templateButtons.enableToggle.checked = Boolean(templateState.enabled);
+}
+
+function scheduleTemplateRefresh(force = false) {
+  if (pendingTemplateRefresh !== null) {
+    clearTimeout(pendingTemplateRefresh);
+  }
+
+  pendingTemplateRefresh = setTimeout(() => {
+    pendingTemplateRefresh = null;
+    void refreshTemplateForActiveCharacter(force);
+  }, 0);
+}
+
+function refreshEditorRendering() {
+  if (!templateState.currentDraft) {
+    return;
+  }
+
+  if (!templateState.editor) {
+    void ensureEditorInstance().then((editor) => {
+      if (!editor) {
+        return;
+      }
+      setEditorContent(cloneTemplate(templateState.currentDraft));
+    });
+    return;
+  }
+
+  setEditorContent(cloneTemplate(templateState.currentDraft));
 }
 
 function cloneTemplate(value) {
@@ -662,7 +692,7 @@ async function saveCurrentTemplate() {
 }
 
 function onContextChanged() {
-  void refreshTemplateForActiveCharacter(true);
+  scheduleTemplateRefresh(true);
 }
 
 function animateDrawer(element, shouldOpen) {
@@ -717,6 +747,10 @@ function openDrawer($icon, $content) {
   $icon.toggleClass("closedIcon openIcon");
   $content.toggleClass("closedDrawer openDrawer");
   animateDrawer($content.get(0), true);
+
+  setTimeout(() => {
+    refreshEditorRendering();
+  }, 250);
 }
 
 async function injectAppHeaderEntry() {
@@ -767,17 +801,9 @@ async function injectAppHeaderEntry() {
     }
   });
 
-  $("#var_system_open_dashboard").on("click", () => {
-    console.log(`${EXTENSION_LOG_PREFIX} 打开面板`);
-  });
-
-  $("#var_system_open_settings").on("click", () => {
-    console.log(`${EXTENSION_LOG_PREFIX} 打开设置`);
-  });
-
   bindTemplateSection($drawer.get(0));
 
-  await refreshTemplateForActiveCharacter(true);
+  scheduleTemplateRefresh(true);
 
   console.log(`${EXTENSION_LOG_PREFIX} 自定义入口已注入`);
 }
