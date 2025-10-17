@@ -34,7 +34,8 @@ const JSON_EDITOR_VERSION = "3.10.0";
 const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/themes/jse-theme-dark.css`;
 const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/standalone.js`;
 
-let jsonEditorAssetPromise = null;
+let jsonEditorStylePromise = null;
+let jsonEditorModulePromise = null;
 let jsonEditorAssetFailed = false;
 let templateButtons = null;
 let pendingTemplateRefresh = null;
@@ -243,57 +244,61 @@ function formatTimestamp(timestamp) {
   }
 }
 
-function injectResource(tagName, attributes) {
-  return new Promise((resolve, reject) => {
-    const element = document.createElement(tagName);
+function ensureJsonEditorStyle() {
+  if (jsonEditorStylePromise) {
+    return jsonEditorStylePromise;
+  }
 
-    Object.entries(attributes).forEach(([key, value]) => {
-      element[key] = value;
-    });
+  const existing = document.querySelector('link[data-jsoneditor-style="true"]');
+  if (existing) {
+    jsonEditorStylePromise = Promise.resolve();
+    return jsonEditorStylePromise;
+  }
 
-    element.addEventListener("load", () => resolve());
-    element.addEventListener("error", (event) => {
-      element.remove();
+  jsonEditorStylePromise = new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = JSON_EDITOR_STYLE_URL;
+    link.dataset.jsoneditorStyle = "true";
+    link.addEventListener("load", () => resolve());
+    link.addEventListener("error", (event) => {
+      link.remove();
+      jsonEditorStylePromise = null;
       reject(event);
     });
-
-    document.head.appendChild(element);
+    document.head.appendChild(link);
   });
+
+  return jsonEditorStylePromise;
 }
 
-function ensureJsonEditorAssets() {
-  if (globalThis.JSONEditor) {
-    return Promise.resolve();
-  }
-
+function ensureJsonEditorModule() {
   if (jsonEditorAssetFailed) {
-    return Promise.reject(new Error("JSON 编辑器资源加载已失败，跳过重试。"));
+    return Promise.reject(new Error("JSON 编辑器模块加载已失败，跳过重试。"));
   }
 
-  if (!jsonEditorAssetPromise) {
-    jsonEditorAssetPromise = Promise.all([
-      injectResource("link", {
-        rel: "stylesheet",
-        href: JSON_EDITOR_STYLE_URL,
-      }),
-      injectResource("script", {
-        src: JSON_EDITOR_SCRIPT_URL,
-        async: true,
-      }),
-    ])
-      .then(() => {
-        if (!globalThis.JSONEditor) {
-          throw new Error("JSONEditor 未成功加载");
+  if (globalThis.createJSONEditor) {
+    return Promise.resolve({ createJSONEditor: globalThis.createJSONEditor });
+  }
+
+  if (!jsonEditorModulePromise) {
+    jsonEditorModulePromise = import(
+      /* webpackIgnore: true */ /* @vite-ignore */ JSON_EDITOR_SCRIPT_URL
+    )
+      .then((module) => {
+        if (!module?.createJSONEditor && !globalThis.createJSONEditor) {
+          throw new Error("JSON 编辑器模块未提供 createJSONEditor。");
         }
+        return module;
       })
       .catch((error) => {
+        jsonEditorModulePromise = null;
         jsonEditorAssetFailed = true;
-        jsonEditorAssetPromise = null;
         throw error;
       });
   }
 
-  return jsonEditorAssetPromise;
+  return jsonEditorModulePromise;
 }
 
 async function ensureEditorInstance() {
@@ -307,32 +312,50 @@ async function ensureEditorInstance() {
     return null;
   }
 
+  let moduleExports = null;
+
   try {
-    await ensureJsonEditorAssets();
+    await ensureJsonEditorStyle();
+    moduleExports = await ensureJsonEditorModule();
   } catch (error) {
     console.error(EXTENSION_LOG_PREFIX, "加载 JSON 编辑器失败", error);
     return ensureFallbackEditor(container);
   }
 
-  const { createJSONEditor } = globalThis;
+  const createJSONEditor =
+    moduleExports?.createJSONEditor ?? globalThis.createJSONEditor;
 
   if (typeof createJSONEditor !== "function") {
     return ensureFallbackEditor(container);
   }
 
-  // JSONEditor 构造会直接接管容器节点。
   templateState.editorIsFallback = false;
-  templateState.editor = createJSONEditor({
-    target: container,
-    props: {
-      content: { json: templateState.currentDraft ?? {} },
-      mainMenuBar: false,
-      navigationBar: false,
-      statusBar: false,
-      onChange: handleEditorChange,
-      modes: ["tree", "text"],
-    },
-  });
+
+  try {
+    templateState.editor = createJSONEditor({
+      target: container,
+      props: {
+        content: { json: templateState.currentDraft ?? {} },
+        mainMenuBar: false,
+        navigationBar: false,
+        statusBar: false,
+        onChange: handleEditorChange,
+        modes: ["tree", "text"],
+      },
+    });
+  } catch (error) {
+    console.error(EXTENSION_LOG_PREFIX, "初始化 JSON 编辑器失败", error);
+    return ensureFallbackEditor(container);
+  }
+
+  if (!templateState.editor || typeof templateState.editor.set !== "function") {
+    console.error(
+      EXTENSION_LOG_PREFIX,
+      "JSON 编辑器实例异常",
+      templateState.editor,
+    );
+    return ensureFallbackEditor(container);
+  }
 
   return templateState.editor;
 }
