@@ -1,3 +1,5 @@
+import { renderExtensionTemplateAsync } from "/scripts/extensions.js";
+
 const EXTENSION_NAMESPACE = "st-var-system";
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";
 
@@ -60,17 +62,9 @@ async function injectAppHeaderEntry() {
     return;
   }
 
-  const renderTemplate = window.renderExtensionTemplateAsync;
-  if (typeof renderTemplate !== "function") {
-    console.warn(
-      `${EXTENSION_LOG_PREFIX} 找不到 renderExtensionTemplateAsync，跳过入口注入`,
-    );
-    return;
-  }
-
   let templateHtml = null;
   try {
-    templateHtml = await renderTemplate(
+    templateHtml = await renderExtensionTemplateAsync(
       "third-party/ST-VarSystemExtension/assets/templates",
       "appHeaderVarSystemDrawer",
     );
