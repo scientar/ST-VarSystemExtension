@@ -314,15 +314,15 @@ async function ensureEditorInstance() {
     return ensureFallbackEditor(container);
   }
 
-  const { JSONEditor } = globalThis;
+  const { createJSONEditor } = globalThis;
 
-  if (!JSONEditor) {
+  if (typeof createJSONEditor !== "function") {
     return ensureFallbackEditor(container);
   }
 
   // JSONEditor 构造会直接接管容器节点。
   templateState.editorIsFallback = false;
-  templateState.editor = new JSONEditor({
+  templateState.editor = createJSONEditor({
     target: container,
     props: {
       content: { json: templateState.currentDraft ?? {} },
