@@ -4,6 +4,9 @@ import {
   renderExtensionTemplateAsync,
   writeExtensionField,
 } from "/scripts/extensions.js";
+import { parseRawTemplate } from "./src/template/parser.js";
+import { serializeTemplateModel } from "./src/template/serializer.js";
+import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
 
 const EXTENSION_NAMESPACE = "st-var-system";
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";
@@ -15,28 +18,31 @@ const TEMPLATE_DISCARD_ID = "var_system_template_discard";
 const TEMPLATE_RELOAD_ID = "var_system_template_reload";
 const TEMPLATE_CLEAR_ID = "var_system_template_clear";
 const TEMPLATE_ENABLED_TOGGLE_ID = "var_system_template_enabled";
+const TEMPLATE_RESET_ID = "var_system_template_reset";
+const TEMPLATE_REPARSE_ID = "var_system_template_reparse";
+const TEMPLATE_SCHEMA_INFO_ID = "var_system_template_schema";
+const DEFAULT_TEMPLATE_SCHEMA_VERSION = 1;
 
 const templateState = {
-  editor: null,
-  silentUpdate: false,
+  editorController: null,
+  editorContainer: null,
   dirty: false,
   hasErrors: false,
   loading: false,
   currentDraft: null,
+  currentModel: null,
   loadedTemplate: null,
+  loadedModel: null,
   templateMeta: null,
   currentCharacterId: null,
   enabled: false,
-  editorIsFallback: false,
+  parserError: null,
+  schemaVersion: null,
 };
 
 const JSON_EDITOR_VERSION = "3.10.0";
 const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/themes/jse-theme-dark.css`;
 const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/standalone.js`;
-
-let jsonEditorStylePromise = null;
-let jsonEditorModulePromise = null;
-let jsonEditorAssetFailed = false;
 let templateButtons = null;
 let pendingTemplateRefresh = null;
 
@@ -59,6 +65,9 @@ function bindTemplateSection(rootElement) {
     status: rootElement.querySelector(`#${TEMPLATE_STATUS_ID}`),
     clear: rootElement.querySelector(`#${TEMPLATE_CLEAR_ID}`),
     enableToggle: rootElement.querySelector(`#${TEMPLATE_ENABLED_TOGGLE_ID}`),
+    reset: rootElement.querySelector(`#${TEMPLATE_RESET_ID}`),
+    reparse: rootElement.querySelector(`#${TEMPLATE_REPARSE_ID}`),
+    schema: rootElement.querySelector(`#${TEMPLATE_SCHEMA_INFO_ID}`),
   };
 
   templateButtons.save?.addEventListener("click", () => {
@@ -66,7 +75,7 @@ function bindTemplateSection(rootElement) {
   });
 
   templateButtons.discard?.addEventListener("click", () => {
-    discardTemplateChanges();
+    void discardTemplateChanges();
   });
 
   templateButtons.reload?.addEventListener("click", () => {
@@ -77,6 +86,14 @@ function bindTemplateSection(rootElement) {
     void clearTemplateForActiveCharacter();
   });
 
+  templateButtons.reset?.addEventListener("click", () => {
+    void resetTemplateToDefault();
+  });
+
+  templateButtons.reparse?.addEventListener("click", () => {
+    void reparseCurrentDraft();
+  });
+
   templateButtons.enableToggle?.addEventListener("change", (event) => {
     const isChecked = Boolean(event.target?.checked);
     void setEnabledForActiveCharacter(isChecked);
@@ -85,6 +102,7 @@ function bindTemplateSection(rootElement) {
   updateTemplateStatus("尚未加载模板", "info");
   updateTemplateControls();
   updateEnableToggleUI();
+  updateSchemaInfo();
 }
 
 function updateTemplateStatus(message, level = "info") {
@@ -107,7 +125,10 @@ function updateTemplateControls() {
 
   if (templateButtons.save) {
     templateButtons.save.disabled =
-      disableAll || templateState.hasErrors || !templateState.dirty;
+      disableAll ||
+      templateState.hasErrors ||
+      templateState.parserError ||
+      !templateState.dirty;
   }
 
   if (templateButtons.discard) {
@@ -124,7 +145,18 @@ function updateTemplateControls() {
       templateState.loading || !templateState.loadedTemplate;
   }
 
+  if (templateButtons.reset) {
+    templateButtons.reset.disabled =
+      templateState.loading || !templateState.currentCharacterId;
+  }
+
+  if (templateButtons.reparse) {
+    templateButtons.reparse.disabled =
+      templateState.loading || !templateState.currentDraft;
+  }
+
   updateEnableToggleUI();
+  updateSchemaInfo();
 }
 
 function updateEnableToggleUI() {
@@ -136,6 +168,35 @@ function updateEnableToggleUI() {
     templateState.loading || !templateState.currentCharacterId;
   templateButtons.enableToggle.disabled = shouldDisable;
   templateButtons.enableToggle.checked = Boolean(templateState.enabled);
+}
+
+function updateSchemaInfo() {
+  const element =
+    templateButtons?.schema || document.getElementById(TEMPLATE_SCHEMA_INFO_ID);
+  if (!element) {
+    return;
+  }
+
+  let text = "Schema: —";
+  let color = STATUS_COLORS.info;
+
+  if (templateState.loading) {
+    text = "Schema: 加载中…";
+  } else if (templateState.parserError) {
+    const reason =
+      templateState.parserError?.message ?? String(templateState.parserError);
+    text = `Schema: 解析失败（${reason}）`;
+    color = STATUS_COLORS.warn;
+  } else if (typeof templateState.schemaVersion === "number") {
+    text = `Schema: v${templateState.schemaVersion}`;
+    color = STATUS_COLORS.success;
+  } else if (templateState.dirty) {
+    text = "Schema: 未解析";
+    color = STATUS_COLORS.warn;
+  }
+
+  element.textContent = text;
+  element.style.color = color;
 }
 
 function scheduleTemplateRefresh(force = false) {
@@ -154,17 +215,22 @@ function refreshEditorRendering() {
     return;
   }
 
-  if (!templateState.editor) {
-    void ensureEditorInstance().then((editor) => {
-      if (!editor) {
+  const applyContent = () =>
+    setEditorContent(cloneTemplate(templateState.currentDraft), {
+      silent: true,
+    });
+
+  if (!templateState.editorController) {
+    void ensureEditorInstance().then((controller) => {
+      if (!controller) {
         return;
       }
-      setEditorContent(cloneTemplate(templateState.currentDraft));
+      applyContent();
     });
     return;
   }
 
-  setEditorContent(cloneTemplate(templateState.currentDraft));
+  applyContent();
 }
 
 function cloneTemplate(value) {
@@ -177,6 +243,59 @@ function cloneTemplate(value) {
   }
 
   return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeTemplate(rawTemplate) {
+  const source =
+    rawTemplate === undefined || rawTemplate === null
+      ? {}
+      : cloneTemplate(rawTemplate);
+
+  try {
+    const parsed = parseRawTemplate(source);
+    if (typeof parsed.schemaVersion !== "number") {
+      parsed.schemaVersion = DEFAULT_TEMPLATE_SCHEMA_VERSION;
+    }
+
+    const normalized = serializeTemplateModel(parsed);
+    return {
+      parsed,
+      normalized,
+      schemaVersion: parsed.schemaVersion,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      parsed: null,
+      normalized: source,
+      schemaVersion: null,
+      error,
+    };
+  }
+}
+
+function applyTemplateResult(result, { markAsLoaded = false } = {}) {
+  templateState.currentDraft = cloneTemplate(result.normalized);
+  templateState.currentModel = result.parsed
+    ? cloneTemplate(result.parsed)
+    : null;
+  templateState.schemaVersion = result.schemaVersion;
+  templateState.parserError = result.error ?? null;
+
+  if (markAsLoaded) {
+    templateState.loadedTemplate = cloneTemplate(result.normalized);
+    templateState.loadedModel = result.parsed
+      ? cloneTemplate(result.parsed)
+      : null;
+  }
+
+  if (result.error) {
+    console.warn(
+      EXTENSION_LOG_PREFIX,
+      "模板解析失败，将以原始 JSON 编辑",
+      result.error,
+    );
+  }
 }
 
 function buildExtensionPayload({
@@ -244,233 +363,66 @@ function formatTimestamp(timestamp) {
   }
 }
 
-function ensureJsonEditorStyle() {
-  if (jsonEditorStylePromise) {
-    return jsonEditorStylePromise;
-  }
-
-  const existing = document.querySelector('link[data-jsoneditor-style="true"]');
-  if (existing) {
-    jsonEditorStylePromise = Promise.resolve();
-    return jsonEditorStylePromise;
-  }
-
-  jsonEditorStylePromise = new Promise((resolve, reject) => {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = JSON_EDITOR_STYLE_URL;
-    link.dataset.jsoneditorStyle = "true";
-    link.addEventListener("load", () => resolve());
-    link.addEventListener("error", (event) => {
-      link.remove();
-      jsonEditorStylePromise = null;
-      reject(event);
-    });
-    document.head.appendChild(link);
-  });
-
-  return jsonEditorStylePromise;
-}
-
-function ensureJsonEditorModule() {
-  if (jsonEditorAssetFailed) {
-    return Promise.reject(new Error("JSON 编辑器模块加载已失败，跳过重试。"));
-  }
-
-  if (globalThis.createJSONEditor) {
-    return Promise.resolve({ createJSONEditor: globalThis.createJSONEditor });
-  }
-
-  if (!jsonEditorModulePromise) {
-    jsonEditorModulePromise = import(
-      /* webpackIgnore: true */ /* @vite-ignore */ JSON_EDITOR_SCRIPT_URL
-    )
-      .then((module) => {
-        if (!module?.createJSONEditor && !globalThis.createJSONEditor) {
-          throw new Error("JSON 编辑器模块未提供 createJSONEditor。");
-        }
-        return module;
-      })
-      .catch((error) => {
-        jsonEditorModulePromise = null;
-        jsonEditorAssetFailed = true;
-        throw error;
-      });
-  }
-
-  return jsonEditorModulePromise;
-}
-
-async function ensureEditorInstance() {
-  if (templateState.editor) {
-    return templateState.editor;
-  }
-
+async function ensureEditorInstance({ readOnly = false } = {}) {
   const container = document.getElementById(TEMPLATE_EDITOR_CONTAINER_ID);
 
   if (!container) {
+    templateState.editorContainer = null;
     return null;
   }
 
-  let moduleExports = null;
+  templateState.editorContainer = container;
 
-  try {
-    await ensureJsonEditorStyle();
-    moduleExports = await ensureJsonEditorModule();
-  } catch (error) {
-    console.error(EXTENSION_LOG_PREFIX, "加载 JSON 编辑器失败", error);
-    return ensureFallbackEditor(container);
-  }
-
-  const createJSONEditor =
-    moduleExports?.createJSONEditor ?? globalThis.createJSONEditor;
-
-  if (typeof createJSONEditor !== "function") {
-    return ensureFallbackEditor(container);
-  }
-
-  templateState.editorIsFallback = false;
-
-  try {
-    templateState.editor = createJSONEditor({
-      target: container,
-      props: {
-        content: { json: templateState.currentDraft ?? {} },
-        mainMenuBar: false,
-        navigationBar: false,
-        statusBar: false,
-        onChange: handleEditorChange,
-        modes: ["tree", "text"],
+  if (!templateState.editorController) {
+    templateState.editorController = createVariableBlockEditor({
+      container,
+      initialValue: templateState.currentDraft ?? {},
+      styleUrl: JSON_EDITOR_STYLE_URL,
+      scriptUrl: JSON_EDITOR_SCRIPT_URL,
+      readOnly,
+      onChange: handleEditorChange,
+      onFallback: () => {
+        updateTemplateStatus(
+          "JSON 编辑器资源加载失败，已降级为纯文本模式。",
+          "warn",
+        );
+        updateTemplateControls();
       },
     });
+  } else {
+    templateState.editorController.setContainer(container);
+  }
+
+  try {
+    await templateState.editorController.ensureReady();
   } catch (error) {
-    console.error(EXTENSION_LOG_PREFIX, "初始化 JSON 编辑器失败", error);
-    return ensureFallbackEditor(container);
+    console.error(EXTENSION_LOG_PREFIX, "初始化变量块编辑器失败", error);
+    return null;
   }
 
-  if (!templateState.editor || typeof templateState.editor.set !== "function") {
-    console.error(
-      EXTENSION_LOG_PREFIX,
-      "JSON 编辑器实例异常",
-      templateState.editor,
-    );
-    return ensureFallbackEditor(container);
-  }
-
-  return templateState.editor;
+  return templateState.editorController;
 }
 
-function setEditorContent(json) {
-  if (!templateState.editor) {
+function setEditorContent(json, { silent = false } = {}) {
+  if (!templateState.editorController) {
     return;
   }
 
-  templateState.silentUpdate = true;
-  templateState.editor.set({ json });
-  templateState.silentUpdate = false;
+  const normalized =
+    json === undefined || json === null ? {} : cloneTemplate(json);
+
+  templateState.editorController.setValue(normalized, { silent });
 }
 
-function ensureFallbackEditor(container) {
-  if (templateState.editor && templateState.editorIsFallback) {
-    return templateState.editor;
+function getEditorContent() {
+  if (!templateState.editorController) {
+    return null;
   }
 
-  templateState.editorIsFallback = true;
-
-  container.innerHTML = "";
-  container.style.display = "flex";
-  container.style.flexDirection = "column";
-  container.style.alignItems = "stretch";
-
-  const notice = document.createElement("div");
-  notice.style.fontSize = "12px";
-  notice.style.padding = "6px";
-  notice.style.background = "rgba(255, 255, 255, 0.05)";
-  notice.style.borderBottom = "1px solid var(--SmartThemeBorderColor, #333)";
-  notice.textContent = "JSON 编辑器资源加载失败，已降级为纯文本模式。";
-
-  const textarea = document.createElement("textarea");
-  textarea.style.width = "100%";
-  textarea.style.height = "calc(100% - 32px)";
-  textarea.style.minHeight = "220px";
-  textarea.style.background = "transparent";
-  textarea.style.color = "inherit";
-  textarea.style.border = "none";
-  textarea.style.padding = "10px";
-  textarea.style.resize = "vertical";
-  textarea.style.fontFamily = "var(--monospaceFont, monospace)";
-  textarea.style.fontSize = "13px";
-  textarea.style.lineHeight = "1.4";
-  textarea.style.borderRadius = "0";
-
-  container.appendChild(notice);
-  container.appendChild(textarea);
-
-  const handleInput = () => {
-    if (templateState.silentUpdate) {
-      return;
-    }
-
-    let parsed = undefined;
-    let contentErrors = [];
-
-    if (textarea.value.trim().length === 0) {
-      parsed = {};
-    } else {
-      try {
-        parsed = JSON.parse(textarea.value);
-      } catch (error) {
-        contentErrors = [{ message: error?.message ?? String(error) }];
-      }
-    }
-
-    const content =
-      contentErrors.length > 0 ? { json: undefined } : { json: parsed };
-    handleEditorChange(content, null, { contentErrors });
-  };
-
-  textarea.addEventListener("input", handleInput);
-
-  const fallbackEditor = {
-    isFallback: true,
-    element: textarea,
-    set({ json }) {
-      const normalized = json === undefined || json === null ? {} : json;
-      const value = JSON.stringify(normalized, null, 2);
-      textarea.value = value;
-    },
-    get() {
-      try {
-        const json = textarea.value.trim().length
-          ? JSON.parse(textarea.value)
-          : {};
-        return { json };
-      } catch (_error) {
-        return { json: undefined };
-      }
-    },
-    destroy() {
-      textarea.removeEventListener("input", handleInput);
-      container.innerHTML = "";
-    },
-  };
-
-  templateState.editor = fallbackEditor;
-
-  templateState.silentUpdate = true;
-  fallbackEditor.set({ json: templateState.currentDraft ?? {} });
-  templateState.silentUpdate = false;
-
-  updateTemplateStatus("已降级为纯文本模式，请手动编辑 JSON。", "warn");
-
-  return fallbackEditor;
+  return templateState.editorController.getValue();
 }
 
 function handleEditorChange(content, _previousContent, metadata) {
-  if (templateState.silentUpdate) {
-    return;
-  }
-
   const hasErrors =
     Boolean(metadata?.contentErrors?.length) || content?.json === undefined;
 
@@ -478,7 +430,10 @@ function handleEditorChange(content, _previousContent, metadata) {
   templateState.dirty = true;
 
   if (!hasErrors && content?.json !== undefined) {
-    templateState.currentDraft = content.json;
+    templateState.currentDraft = cloneTemplate(content.json);
+    templateState.parserError = null;
+    templateState.schemaVersion = null;
+    templateState.currentModel = null;
   }
 
   updateTemplateControls();
@@ -488,20 +443,28 @@ function handleEditorChange(content, _previousContent, metadata) {
   );
 }
 
-function discardTemplateChanges() {
+async function discardTemplateChanges() {
   if (!templateState.loadedTemplate) {
     updateTemplateStatus("没有可恢复的模板版本。", "warn");
     return;
   }
 
-  if (!templateState.editor) {
-    return;
+  const result = normalizeTemplate(templateState.loadedTemplate);
+  applyTemplateResult(result, { markAsLoaded: true });
+
+  templateState.dirty = false;
+  templateState.hasErrors = Boolean(result.error);
+  templateState.parserError = result.error ?? null;
+  templateState.templateMeta = {
+    ...templateState.templateMeta,
+    templateSchemaVersion: result.schemaVersion ?? null,
+  };
+
+  const controller = await ensureEditorInstance();
+  if (controller) {
+    setEditorContent(templateState.currentDraft ?? {}, { silent: true });
   }
 
-  templateState.currentDraft = cloneTemplate(templateState.loadedTemplate);
-  setEditorContent(cloneTemplate(templateState.loadedTemplate));
-  templateState.dirty = false;
-  templateState.hasErrors = false;
   updateTemplateControls();
   updateTemplateStatus("已恢复为最后保存的模板。", "info");
 }
@@ -513,9 +476,21 @@ async function refreshTemplateForActiveCharacter(force = false) {
   if (activeCharacterId == null) {
     templateState.currentCharacterId = null;
     templateState.loadedTemplate = null;
+    templateState.loadedModel = null;
     templateState.currentDraft = null;
+    templateState.currentModel = null;
     templateState.templateMeta = null;
     templateState.enabled = false;
+    templateState.dirty = false;
+    templateState.hasErrors = false;
+    templateState.parserError = null;
+    templateState.schemaVersion = null;
+    templateState.loading = false;
+
+    if (templateState.editorController) {
+      setEditorContent({}, { silent: true });
+    }
+
     updateTemplateStatus("请选择角色后再编辑模板。", "warn");
     updateTemplateControls();
     return;
@@ -530,7 +505,7 @@ async function refreshTemplateForActiveCharacter(force = false) {
   updateTemplateStatus("模板加载中……", "info");
 
   try {
-    await ensureEditorInstance();
+    const controller = await ensureEditorInstance();
 
     const character = context.characters?.[activeCharacterId];
     const extensionData =
@@ -539,36 +514,53 @@ async function refreshTemplateForActiveCharacter(force = false) {
     const hasTemplate = Boolean(extensionData?.templateBody);
     const templateId =
       extensionData?.templateId || generateTemplateId(character);
-    const resolvedTemplate = hasTemplate
-      ? cloneTemplate(extensionData.templateBody)
+    const sourceTemplate = hasTemplate
+      ? extensionData.templateBody
       : buildDefaultTemplate(character);
+    const normalizationResult = normalizeTemplate(sourceTemplate);
 
     templateState.currentCharacterId = activeCharacterId;
-    templateState.loadedTemplate = hasTemplate
-      ? cloneTemplate(resolvedTemplate)
-      : null;
-    templateState.currentDraft = cloneTemplate(resolvedTemplate);
+    applyTemplateResult(normalizationResult, { markAsLoaded: hasTemplate });
+
+    if (!hasTemplate) {
+      templateState.loadedTemplate = null;
+      templateState.loadedModel = null;
+    }
+
     templateState.templateMeta = {
       templateId,
       updatedAt: extensionData?.updatedAt ?? null,
+      templateSchemaVersion: normalizationResult.schemaVersion ?? null,
     };
+
     const resolvedEnabled =
       typeof extensionData?.enabled === "boolean"
         ? extensionData.enabled
         : hasTemplate;
     templateState.enabled = Boolean(resolvedEnabled);
-    templateState.dirty = !hasTemplate;
-    templateState.hasErrors = false;
+    templateState.dirty = Boolean(normalizationResult.error) || !hasTemplate;
+    templateState.hasErrors = Boolean(normalizationResult.error);
 
-    if (templateState.editor) {
-      setEditorContent(cloneTemplate(resolvedTemplate));
+    if (controller && templateState.currentDraft) {
+      setEditorContent(templateState.currentDraft, { silent: true });
     }
 
-    const statusMessage = hasTemplate
-      ? `模板已加载（最后更新：${formatTimestamp(extensionData?.updatedAt) || "未知"}）。`
-      : "已为该角色准备默认模板，请完善后保存。";
+    let statusMessage;
+    let statusLevel = "info";
 
-    updateTemplateStatus(statusMessage, hasTemplate ? "info" : "warn");
+    if (normalizationResult.error) {
+      const reason =
+        normalizationResult.error?.message || String(normalizationResult.error);
+      statusMessage = `模板已加载，但解析失败：${reason}`;
+      statusLevel = "warn";
+    } else if (hasTemplate) {
+      statusMessage = `模板已加载（最后更新：${formatTimestamp(extensionData?.updatedAt) || "未知"}）。`;
+    } else {
+      statusMessage = "已为该角色准备默认模板，请完善后保存。";
+      statusLevel = "warn";
+    }
+
+    updateTemplateStatus(statusMessage, statusLevel);
   } catch (error) {
     console.error(EXTENSION_LOG_PREFIX, "加载模板失败", error);
     updateTemplateStatus(`加载模板失败：${error?.message ?? error}`, "error");

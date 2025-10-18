@@ -1,0 +1,8 @@
+{
+  "name": "st-var-system-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
