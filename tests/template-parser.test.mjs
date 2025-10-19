@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import { parseRawTemplate } from "../src/template/parser.js";
 import { serializeTemplateModel } from "../src/template/serializer.js";
 

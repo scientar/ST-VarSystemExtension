@@ -4,6 +4,7 @@ import {
   renderExtensionTemplateAsync,
   writeExtensionField,
 } from "/scripts/extensions.js";
+import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
 import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
 
 const EXTENSION_NAMESPACE = "st-var-system";
@@ -12,6 +13,7 @@ const TEMPLATE_EXTENSION_KEY = "st_var_system";
 const TEMPLATE_EDITOR_CONTAINER_ID = "var_system_template_editor";
 const TEMPLATE_STATUS_ID = "var_system_template_status";
 const TEMPLATE_SAVE_ID = "var_system_template_save";
+const TEMPLATE_SAVE_AS_GLOBAL_ID = "var_system_template_save_as_global";
 const TEMPLATE_DISCARD_ID = "var_system_template_discard";
 const TEMPLATE_RELOAD_ID = "var_system_template_reload";
 const TEMPLATE_CLEAR_ID = "var_system_template_clear";
@@ -49,6 +51,7 @@ function bindTemplateSection(rootElement) {
 
   templateButtons = {
     save: rootElement.querySelector(`#${TEMPLATE_SAVE_ID}`),
+    saveAsGlobal: rootElement.querySelector(`#${TEMPLATE_SAVE_AS_GLOBAL_ID}`),
     discard: rootElement.querySelector(`#${TEMPLATE_DISCARD_ID}`),
     reload: rootElement.querySelector(`#${TEMPLATE_RELOAD_ID}`),
     status: rootElement.querySelector(`#${TEMPLATE_STATUS_ID}`),
@@ -58,6 +61,10 @@ function bindTemplateSection(rootElement) {
 
   templateButtons.save?.addEventListener("click", () => {
     void saveCurrentTemplate();
+  });
+
+  templateButtons.saveAsGlobal?.addEventListener("click", () => {
+    void saveTemplateAsGlobalSnapshot();
   });
 
   templateButtons.discard?.addEventListener("click", () => {
@@ -477,6 +484,110 @@ async function saveCurrentTemplate() {
   }
 }
 
+/**
+ * 将当前角色模板保存为全局快照
+ */
+async function saveTemplateAsGlobalSnapshot() {
+  const context = getContext();
+  if (!context.characterId) {
+    await callGenericPopup("请先选择一个角色", POPUP_TYPE.TEXT, "", {
+      okButton: "确定",
+    });
+    return;
+  }
+
+  // 检查是否有有效的模板内容
+  const controller = await ensureEditorInstance();
+  if (!controller) {
+    updateTemplateStatus("编辑器尚未准备就绪。", "error");
+    return;
+  }
+
+  const content = controller.get();
+  const json = content?.json;
+
+  if (json === undefined || !json) {
+    await callGenericPopup(
+      "当前模板为空或有错误，无法保存为全局快照",
+      POPUP_TYPE.TEXT,
+      "",
+      { okButton: "确定" },
+    );
+    return;
+  }
+
+  // 获取角色名称作为默认快照名称
+  const character = context.characters?.[context.characterId];
+  const defaultName = character?.name ? `${character.name}的模板` : "角色模板";
+
+  // 请求用户输入快照名称
+  const snapshotName = await callGenericPopup(
+    "请输入全局快照的名称：",
+    POPUP_TYPE.INPUT,
+    defaultName,
+    { okButton: "保存", cancelButton: "取消" },
+  );
+
+  if (!snapshotName) {
+    return; // 用户取消
+  }
+
+  try {
+    updateTemplateStatus("正在保存为全局快照...", "info");
+
+    // 调用插件 API 保存
+    const payload = {
+      name: snapshotName,
+      description: `从角色"${character?.name || "未知"}"的模板创建`,
+      tags: ["角色模板", character?.name].filter(Boolean),
+      snapshotBody: json,
+    };
+
+    await callPluginAPI("/global-snapshots", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    updateTemplateStatus(`已保存为全局快照："${snapshotName}"`, "success");
+
+    console.log(
+      `${EXTENSION_LOG_PREFIX} 角色模板已保存为全局快照:`,
+      snapshotName,
+    );
+
+    // 提示用户并询问是否切换到全局快照标签页
+    const switchTab = await callGenericPopup(
+      `全局快照"${snapshotName}"已创建成功！\n\n是否切换到全局快照标签页查看？`,
+      POPUP_TYPE.CONFIRM,
+      "",
+      { okButton: "查看", cancelButton: "留在这里" },
+    );
+
+    if (switchTab) {
+      // 切换到全局快照标签页
+      document.getElementById("var_system_tab_global")?.click();
+      // 刷新快照列表
+      await loadGlobalSnapshots();
+    }
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 保存为全局快照失败:`, error);
+
+    let errorMsg = "保存失败";
+    if (error.message.includes("插件未安装")) {
+      errorMsg =
+        "插件未安装或未启用。\n\n全局快照功能需要安装 ST-VarSystemPlugin 插件。";
+    } else {
+      errorMsg = `保存失败: ${error.message}`;
+    }
+
+    updateTemplateStatus(errorMsg, "error");
+
+    await callGenericPopup(errorMsg, POPUP_TYPE.TEXT, "", {
+      okButton: "关闭",
+    });
+  }
+}
+
 function onContextChanged() {
   scheduleTemplateRefresh(true);
 }
@@ -535,6 +646,733 @@ function openDrawer($icon, $content) {
   animateDrawer($content.get(0), true);
 }
 
+// ============================================================================
+// 标签页切换功能
+// ============================================================================
+
+let currentTab = "character";
+
+function switchTab(tabName) {
+  if (currentTab === tabName) return;
+
+  currentTab = tabName;
+
+  // 更新标签按钮样式
+  document.querySelectorAll(".var-system-tab").forEach((btn) => {
+    const isActive = btn.dataset.tab === tabName;
+    if (isActive) {
+      btn.classList.add("active");
+      btn.style.borderBottomColor = "var(--SmartThemeQuoteColor, #4a9eff)";
+      btn.style.color = "var(--SmartThemeQuoteColor, #4a9eff)";
+    } else {
+      btn.classList.remove("active");
+      btn.style.borderBottomColor = "transparent";
+      btn.style.color = "var(--SmartThemeBodyColor, inherit)";
+    }
+  });
+
+  // 切换内容区域
+  document.querySelectorAll(".var-system-tab-content").forEach((content) => {
+    if (content.dataset.tab === tabName) {
+      content.style.display = "flex";
+    } else {
+      content.style.display = "none";
+    }
+  });
+
+  console.log(`${EXTENSION_LOG_PREFIX} 切换到标签页: ${tabName}`);
+
+  // 如果切换到全局快照标签页，自动加载快照列表
+  if (tabName === "global") {
+    void loadGlobalSnapshots();
+  }
+}
+
+function bindTabSwitching(rootElement) {
+  const tabButtons = rootElement.querySelectorAll(".var-system-tab");
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchTab(btn.dataset.tab);
+    });
+  });
+}
+
+// ============================================================================
+// 全局快照功能
+// ============================================================================
+
+const PLUGIN_BASE_URL = "/api/plugins/var-manager/var-manager";
+
+const snapshotsState = {
+  snapshots: [],
+  filteredSnapshots: [],
+  searchQuery: "",
+  selectedTag: "",
+  loading: false,
+  // 编辑器状态
+  viewMode: "list", // "list" | "editor"
+  editorController: null,
+  editingSnapshotId: null, // null 表示新建，否则是编辑现有快照
+  draftSnapshot: null, // 编辑中的快照数据
+};
+
+let snapshotButtons = null;
+let snapshotEditorButtons = null;
+
+/**
+ * 调用插件 API
+ */
+async function callPluginAPI(endpoint, options = {}) {
+  const url = `${PLUGIN_BASE_URL}${endpoint}`;
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("插件未安装或未启用");
+      }
+      throw new Error(
+        `API 请求失败: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} API 调用失败:`, endpoint, error);
+    throw error;
+  }
+}
+
+/**
+ * 加载全局快照列表
+ */
+/**
+ * 切换全局快照视图模式
+ */
+function switchSnapshotView(mode) {
+  if (snapshotsState.viewMode === mode) return;
+
+  snapshotsState.viewMode = mode;
+
+  const listView = document.getElementById("var_system_snapshots_list_view");
+  const editorView = document.getElementById("var_system_snapshot_editor_view");
+
+  if (mode === "list") {
+    listView.style.display = "flex";
+    editorView.style.display = "none";
+  } else {
+    listView.style.display = "none";
+    editorView.style.display = "flex";
+  }
+
+  console.log(`${EXTENSION_LOG_PREFIX} 快照视图切换到: ${mode}`);
+}
+
+/**
+ * 初始化快照编辑器
+ */
+async function ensureSnapshotEditorInstance() {
+  if (snapshotsState.editorController) {
+    return;
+  }
+
+  const container = document.getElementById("var_system_snapshot_body_editor");
+  if (!container) {
+    console.error(`${EXTENSION_LOG_PREFIX} 找不到快照编辑器容器`);
+    return;
+  }
+
+  try {
+    snapshotsState.editorController = await createVariableBlockEditor(
+      container,
+      () => {
+        // onChange callback - 内容变化时更新状态
+        updateSnapshotEditorStatus("已修改，未保存", "warn");
+      },
+    );
+    console.log(`${EXTENSION_LOG_PREFIX} 快照编辑器已初始化`);
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 快照编辑器初始化失败:`, error);
+  }
+}
+
+/**
+ * 更新快照编辑器状态显示
+ */
+function updateSnapshotEditorStatus(message, type = "info") {
+  const statusElement = document.getElementById(
+    "var_system_snapshot_editor_status",
+  );
+  if (!statusElement) return;
+
+  statusElement.textContent = message;
+  statusElement.style.color = STATUS_COLORS[type] || STATUS_COLORS.info;
+}
+
+async function loadGlobalSnapshots() {
+  if (snapshotsState.loading) return;
+
+  snapshotsState.loading = true;
+  updateSnapshotsListUI("加载中...");
+
+  try {
+    const data = await callPluginAPI("/global-snapshots");
+    snapshotsState.snapshots = data.snapshots || [];
+    snapshotsState.filteredSnapshots = snapshotsState.snapshots;
+
+    console.log(
+      `${EXTENSION_LOG_PREFIX} 已加载 ${snapshotsState.snapshots.length} 个全局快照`,
+    );
+
+    applySnapshotFilters();
+    renderSnapshotsList();
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 加载全局快照失败:`, error);
+    updateSnapshotsListUI(`加载失败: ${error.message}`);
+  } finally {
+    snapshotsState.loading = false;
+  }
+}
+
+/**
+ * 应用搜索和过滤
+ */
+function applySnapshotFilters() {
+  let filtered = [...snapshotsState.snapshots];
+
+  // 搜索过滤
+  if (snapshotsState.searchQuery) {
+    const query = snapshotsState.searchQuery.toLowerCase();
+    filtered = filtered.filter(
+      (s) =>
+        s.name.toLowerCase().includes(query) ||
+        s.description?.toLowerCase().includes(query),
+    );
+  }
+
+  // 标签过滤
+  if (snapshotsState.selectedTag) {
+    filtered = filtered.filter((s) =>
+      s.tags?.includes(snapshotsState.selectedTag),
+    );
+  }
+
+  snapshotsState.filteredSnapshots = filtered;
+}
+
+/**
+ * 渲染快照列表
+ */
+function renderSnapshotsList() {
+  const listContainer = document.getElementById("var_system_snapshots_list");
+  const emptyState = document.getElementById("var_system_snapshots_empty");
+
+  if (!listContainer) return;
+
+  // 清空现有内容（保留空状态元素）
+  listContainer.querySelectorAll(".snapshot-card").forEach((card) => {
+    card.remove();
+  });
+
+  if (snapshotsState.filteredSnapshots.length === 0) {
+    emptyState.style.display = "block";
+    return;
+  }
+
+  emptyState.style.display = "none";
+
+  snapshotsState.filteredSnapshots.forEach((snapshot) => {
+    const card = createSnapshotCard(snapshot);
+    listContainer.insertBefore(card, emptyState);
+  });
+}
+
+/**
+ * 创建快照卡片
+ */
+function createSnapshotCard(snapshot) {
+  const card = document.createElement("div");
+  card.className = "snapshot-card";
+  card.dataset.snapshotId = snapshot.snapshotId;
+  card.style.cssText = `
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    padding: 12px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  `;
+
+  // 标题
+  const title = document.createElement("h4");
+  title.textContent = snapshot.name;
+  title.style.cssText = "margin: 0; font-size: 16px;";
+  card.appendChild(title);
+
+  // 描述
+  if (snapshot.description) {
+    const desc = document.createElement("p");
+    desc.textContent = snapshot.description;
+    desc.style.cssText =
+      "margin: 0; font-size: 13px; color: var(--SmartThemeBodyColor, #aaa); line-height: 1.4;";
+    card.appendChild(desc);
+  }
+
+  // 标签
+  if (snapshot.tags && snapshot.tags.length > 0) {
+    const tagsContainer = document.createElement("div");
+    tagsContainer.style.cssText = "display: flex; gap: 6px; flex-wrap: wrap;";
+    snapshot.tags.forEach((tag) => {
+      const tagSpan = document.createElement("span");
+      tagSpan.textContent = tag;
+      tagSpan.style.cssText = `
+        padding: 2px 8px;
+        font-size: 11px;
+        border-radius: 3px;
+        background: var(--SmartThemeQuoteColor, #4a9eff);
+        color: white;
+      `;
+      tagsContainer.appendChild(tagSpan);
+    });
+    card.appendChild(tagsContainer);
+  }
+
+  // 元信息
+  const meta = document.createElement("div");
+  meta.style.cssText =
+    "font-size: 11px; color: var(--SmartThemeBodyColor, #888);";
+  const createdDate = new Date(snapshot.createdAt).toLocaleString("zh-CN");
+  meta.textContent = `创建于 ${createdDate}`;
+  card.appendChild(meta);
+
+  // 操作按钮
+  const actions = document.createElement("div");
+  actions.style.cssText =
+    "display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;";
+
+  const buttons = [
+    {
+      text: "查看/编辑",
+      icon: "fa-pen-to-square",
+      action: () => editSnapshot(snapshot.snapshotId),
+    },
+    {
+      text: "应用到角色",
+      icon: "fa-download",
+      action: () => loadSnapshotToCharacter(snapshot.snapshotId),
+    },
+    {
+      text: "删除",
+      icon: "fa-trash",
+      action: () => deleteSnapshot(snapshot.snapshotId),
+    },
+  ];
+
+  buttons.forEach((btnDef) => {
+    const btn = document.createElement("button");
+    btn.className = "menu_button interactable";
+    btn.style.cssText = "padding: 4px 8px; font-size: 12px;";
+    btn.innerHTML = `<i class="fa-solid ${btnDef.icon} fa-fw"></i> ${btnDef.text}`;
+    btn.addEventListener("click", btnDef.action);
+    actions.appendChild(btn);
+  });
+
+  card.appendChild(actions);
+
+  return card;
+}
+
+/**
+ * 更新快照列表 UI（加载中/错误状态）
+ */
+function updateSnapshotsListUI(message) {
+  const emptyState = document.getElementById("var_system_snapshots_empty");
+  if (emptyState) {
+    emptyState.innerHTML = `<p style="text-align: center; padding: 20px;">${message}</p>`;
+    emptyState.style.display = "block";
+  }
+}
+
+/**
+ * 将快照应用到当前角色
+ */
+async function loadSnapshotToCharacter(snapshotId) {
+  const context = getContext();
+  if (!context.characterId) {
+    await callGenericPopup("请先选择一个角色", POPUP_TYPE.TEXT, "", {
+      okButton: "确定",
+    });
+    return;
+  }
+
+  try {
+    const snapshot = await callPluginAPI(`/global-snapshots/${snapshotId}`);
+
+    // 确认是否要覆盖当前模板
+    const confirmed = await callGenericPopup(
+      `将快照 "${snapshot.name}" 应用到当前角色会覆盖现有模板内容。\n\n是否继续？`,
+      POPUP_TYPE.CONFIRM,
+      "",
+      { okButton: "应用", cancelButton: "取消" },
+    );
+
+    if (!confirmed) return;
+
+    // 将快照内容写入角色模板
+    templateState.draftBody = snapshot.snapshotBody;
+    templateState.dirty = true;
+
+    // 更新编辑器显示
+    if (templateState.editorController) {
+      templateState.editorController.set({ json: templateState.draftBody });
+    }
+
+    updateTemplateStatus(
+      `已加载快照 "${snapshot.name}"，请保存以应用`,
+      "success",
+    );
+    updateTemplateControls();
+
+    // 切换回角色模板标签页
+    switchTab("character");
+
+    console.log(
+      `${EXTENSION_LOG_PREFIX} 已将快照 ${snapshotId} 加载到角色模板`,
+    );
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 加载快照失败:`, error);
+    await callGenericPopup(
+      `加载快照失败: ${error.message}`,
+      POPUP_TYPE.TEXT,
+      "",
+      { okButton: "关闭" },
+    );
+  }
+}
+
+/**
+ * 编辑快照
+ */
+async function editSnapshot(snapshotId) {
+  console.log(`${EXTENSION_LOG_PREFIX} 编辑快照:`, snapshotId);
+
+  try {
+    // 从插件加载完整快照数据
+    const snapshot = await callPluginAPI(`/global-snapshots/${snapshotId}`);
+
+    // 初始化编辑器
+    await ensureSnapshotEditorInstance();
+
+    // 设置编辑状态
+    snapshotsState.editingSnapshotId = snapshotId;
+    snapshotsState.draftSnapshot = { ...snapshot };
+
+    // 切换到编辑视图
+    switchSnapshotView("editor");
+
+    // 更新标题
+    const title = document.getElementById("var_system_snapshot_editor_title");
+    if (title) {
+      title.textContent = `编辑快照: ${snapshot.name}`;
+    }
+
+    // 填充表单
+    document.getElementById("var_system_snapshot_name").value =
+      snapshot.name || "";
+    document.getElementById("var_system_snapshot_description").value =
+      snapshot.description || "";
+    document.getElementById("var_system_snapshot_tags").value = snapshot.tags
+      ? snapshot.tags.join(", ")
+      : "";
+
+    // 设置编辑器内容
+    if (snapshotsState.editorController) {
+      snapshotsState.editorController.set({ json: snapshot.snapshotBody });
+    }
+
+    updateSnapshotEditorStatus("编辑快照，修改后点击保存", "info");
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 加载快照失败:`, error);
+    await callGenericPopup(
+      `加载快照失败: ${error.message}`,
+      POPUP_TYPE.TEXT,
+      "",
+      { okButton: "关闭" },
+    );
+  }
+}
+
+/**
+ * 保存当前编辑的快照
+ */
+async function saveCurrentSnapshot() {
+  try {
+    // 获取表单数据
+    const name = document
+      .getElementById("var_system_snapshot_name")
+      .value.trim();
+    const description = document
+      .getElementById("var_system_snapshot_description")
+      .value.trim();
+    const tagsInput = document
+      .getElementById("var_system_snapshot_tags")
+      .value.trim();
+
+    // 验证必填字段
+    if (!name) {
+      await callGenericPopup("请输入快照名称", POPUP_TYPE.TEXT, "", {
+        okButton: "确定",
+      });
+      return;
+    }
+
+    // 获取编辑器内容
+    let snapshotBody = null;
+    if (snapshotsState.editorController) {
+      try {
+        const content = snapshotsState.editorController.get();
+        snapshotBody = content.json;
+      } catch (error) {
+        console.error(`${EXTENSION_LOG_PREFIX} 获取编辑器内容失败:`, error);
+        await callGenericPopup(
+          "编辑器内容有误，请检查 JSON 格式",
+          POPUP_TYPE.TEXT,
+          "",
+          { okButton: "确定" },
+        );
+        return;
+      }
+    }
+
+    // 解析标签
+    const tags = tagsInput
+      ? tagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => t)
+      : [];
+
+    // 构建保存数据
+    const payload = {
+      snapshotId: snapshotsState.editingSnapshotId || undefined,
+      name,
+      description,
+      tags,
+      snapshotBody,
+    };
+
+    updateSnapshotEditorStatus("保存中...", "info");
+
+    // 调用插件 API 保存
+    await callPluginAPI("/global-snapshots", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    console.log(
+      `${EXTENSION_LOG_PREFIX} 快照已保存:`,
+      snapshotsState.editingSnapshotId || "new",
+    );
+
+    // 返回列表视图并刷新
+    switchSnapshotView("list");
+    await loadGlobalSnapshots();
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 保存快照失败:`, error);
+    updateSnapshotEditorStatus(`保存失败: ${error.message}`, "error");
+    await callGenericPopup(`保存失败: ${error.message}`, POPUP_TYPE.TEXT, "", {
+      okButton: "关闭",
+    });
+  }
+}
+
+/**
+ * 取消编辑并返回列表
+ */
+async function cancelSnapshotEditor() {
+  // 检查是否有未保存的修改
+  const nameChanged =
+    document.getElementById("var_system_snapshot_name").value.trim() !==
+    (snapshotsState.draftSnapshot?.name || "");
+  const descChanged =
+    document.getElementById("var_system_snapshot_description").value.trim() !==
+    (snapshotsState.draftSnapshot?.description || "");
+
+  if (nameChanged || descChanged) {
+    const confirmed = await callGenericPopup(
+      "有未保存的修改，确定要放弃吗？",
+      POPUP_TYPE.CONFIRM,
+      "",
+      { okButton: "放弃", cancelButton: "继续编辑" },
+    );
+
+    if (!confirmed) return;
+  }
+
+  // 清理状态
+  snapshotsState.editingSnapshotId = null;
+  snapshotsState.draftSnapshot = null;
+
+  // 返回列表视图
+  switchSnapshotView("list");
+}
+
+/**
+ * 删除快照
+ */
+async function deleteSnapshot(snapshotId) {
+  const snapshot = snapshotsState.snapshots.find(
+    (s) => s.snapshotId === snapshotId,
+  );
+  if (!snapshot) return;
+
+  const confirmed = await callGenericPopup(
+    `确定要删除快照 "${snapshot.name}" 吗？\n\n此操作不可撤销。`,
+    POPUP_TYPE.CONFIRM,
+    "",
+    { okButton: "删除", cancelButton: "取消" },
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await callPluginAPI(`/global-snapshots/${snapshotId}`, {
+      method: "DELETE",
+    });
+
+    console.log(`${EXTENSION_LOG_PREFIX} 已删除快照:`, snapshotId);
+
+    // 从列表中移除
+    snapshotsState.snapshots = snapshotsState.snapshots.filter(
+      (s) => s.snapshotId !== snapshotId,
+    );
+
+    applySnapshotFilters();
+    renderSnapshotsList();
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 删除快照失败:`, error);
+    await callGenericPopup(`删除失败: ${error.message}`, POPUP_TYPE.TEXT, "", {
+      okButton: "关闭",
+    });
+  }
+}
+
+/**
+ * 新建快照
+ */
+async function createNewSnapshot() {
+  console.log(`${EXTENSION_LOG_PREFIX} 新建快照`);
+
+  // 初始化编辑器
+  await ensureSnapshotEditorInstance();
+
+  // 重置编辑状态
+  snapshotsState.editingSnapshotId = null;
+  snapshotsState.draftSnapshot = {
+    name: "",
+    description: "",
+    tags: [],
+    snapshotBody: { metadata: {}, variables: {} },
+  };
+
+  // 切换到编辑视图
+  switchSnapshotView("editor");
+
+  // 更新标题
+  const title = document.getElementById("var_system_snapshot_editor_title");
+  if (title) {
+    title.textContent = "新建快照";
+  }
+
+  // 填充表单
+  document.getElementById("var_system_snapshot_name").value = "";
+  document.getElementById("var_system_snapshot_description").value = "";
+  document.getElementById("var_system_snapshot_tags").value = "";
+
+  // 设置编辑器内容
+  if (snapshotsState.editorController) {
+    snapshotsState.editorController.set({
+      json: snapshotsState.draftSnapshot.snapshotBody,
+    });
+  }
+
+  updateSnapshotEditorStatus("新建快照，填写信息后点击保存", "info");
+}
+
+/**
+ * 绑定全局快照区域的事件
+ */
+function bindSnapshotsSection(rootElement) {
+  if (!rootElement || snapshotButtons) {
+    return;
+  }
+
+  // 列表视图按钮
+  snapshotButtons = {
+    search: rootElement.querySelector("#var_system_snapshot_search"),
+    tagFilter: rootElement.querySelector("#var_system_snapshot_tag_filter"),
+    newBtn: rootElement.querySelector("#var_system_snapshot_new"),
+    refreshBtn: rootElement.querySelector("#var_system_snapshot_refresh"),
+  };
+
+  // 编辑器视图按钮
+  snapshotEditorButtons = {
+    back: rootElement.querySelector("#var_system_snapshot_editor_back"),
+    save: rootElement.querySelector("#var_system_snapshot_editor_save"),
+    cancel: rootElement.querySelector("#var_system_snapshot_editor_cancel"),
+  };
+
+  // 搜索
+  snapshotButtons.search?.addEventListener("input", (e) => {
+    snapshotsState.searchQuery = e.target.value;
+    applySnapshotFilters();
+    renderSnapshotsList();
+  });
+
+  // 标签过滤
+  snapshotButtons.tagFilter?.addEventListener("change", (e) => {
+    snapshotsState.selectedTag = e.target.value;
+    applySnapshotFilters();
+    renderSnapshotsList();
+  });
+
+  // 新建快照
+  snapshotButtons.newBtn?.addEventListener("click", () => {
+    void createNewSnapshot();
+  });
+
+  // 刷新列表
+  snapshotButtons.refreshBtn?.addEventListener("click", () => {
+    void loadGlobalSnapshots();
+  });
+
+  // 编辑器：返回列表
+  snapshotEditorButtons.back?.addEventListener("click", () => {
+    void cancelSnapshotEditor();
+  });
+
+  // 编辑器：保存
+  snapshotEditorButtons.save?.addEventListener("click", () => {
+    void saveCurrentSnapshot();
+  });
+
+  // 编辑器：取消
+  snapshotEditorButtons.cancel?.addEventListener("click", () => {
+    void cancelSnapshotEditor();
+  });
+}
+
 async function injectAppHeaderEntry() {
   if (document.querySelector("#var_system_drawer")) {
     return;
@@ -583,7 +1421,10 @@ async function injectAppHeaderEntry() {
     }
   });
 
-  bindTemplateSection($drawer.get(0));
+  const rootElement = $drawer.get(0);
+  bindTemplateSection(rootElement);
+  bindTabSwitching(rootElement);
+  bindSnapshotsSection(rootElement);
 
   scheduleTemplateRefresh(true);
 

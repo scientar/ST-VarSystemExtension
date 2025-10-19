@@ -163,7 +163,7 @@ export function createVariableBlockEditor(options = {}) {
         return;
       }
 
-      let parsed = undefined;
+      let parsed;
       const contentErrors = [];
 
       if (textarea.value.trim().length === 0) {
