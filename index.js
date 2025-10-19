@@ -162,14 +162,9 @@ function cloneJSON(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function buildDefaultTemplate(character) {
-  return {
-    metadata: {
-      name: character?.name ?? "",
-      createdAt: new Date().toISOString(),
-    },
-    variables: {},
-  };
+function buildDefaultTemplate(_character) {
+  // 直接返回空对象，不需要 metadata 和 variables 包装
+  return {};
 }
 
 async function ensureEditorInstance({ readOnly = false } = {}) {
@@ -897,6 +892,7 @@ async function loadGlobalSnapshots() {
 
     applySnapshotFilters();
     renderSnapshotsList();
+    updateTagFilterOptions(); // 更新标签下拉菜单
   } catch (error) {
     console.error(`${EXTENSION_LOG_PREFIX} 加载全局快照失败:`, error);
 
@@ -921,6 +917,48 @@ async function loadGlobalSnapshots() {
   } finally {
     snapshotsState.loading = false;
     console.log(`${EXTENSION_LOG_PREFIX} 加载全局快照完成，loading = false`);
+  }
+}
+
+/**
+ * 更新标签过滤下拉菜单选项
+ */
+function updateTagFilterOptions() {
+  const tagFilter = document.getElementById("var_system_snapshot_tag_filter");
+  if (!tagFilter) return;
+
+  // 收集所有唯一标签
+  const allTags = new Set();
+  snapshotsState.snapshots.forEach((snapshot) => {
+    if (snapshot.tags && Array.isArray(snapshot.tags)) {
+      snapshot.tags.forEach((tag) => {
+        if (tag?.trim()) {
+          allTags.add(tag.trim());
+        }
+      });
+    }
+  });
+
+  // 排序标签
+  const sortedTags = Array.from(allTags).sort();
+
+  // 保存当前选中的标签
+  const currentValue = tagFilter.value;
+
+  // 清空并重建选项
+  tagFilter.innerHTML =
+    '<option value="" data-i18n="All tags">所有标签</option>';
+
+  sortedTags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    tagFilter.appendChild(option);
+  });
+
+  // 恢复之前的选择（如果该标签还存在）
+  if (currentValue && sortedTags.includes(currentValue)) {
+    tagFilter.value = currentValue;
   }
 }
 
@@ -1371,7 +1409,7 @@ async function createNewSnapshot() {
     name: "",
     description: "",
     tags: [],
-    snapshotBody: { metadata: {}, variables: {} },
+    snapshotBody: {}, // 直接空对象，不需要包装
   };
 
   // 先切换到编辑视图（这样容器才可见）
