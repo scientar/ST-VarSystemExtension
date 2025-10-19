@@ -731,21 +731,40 @@ async function callPluginAPI(endpoint, options = {}) {
     // getRequestHeaders 可能在全局作用域中
     if (typeof window.getRequestHeaders === "function") {
       authHeaders = window.getRequestHeaders();
+      console.log(
+        `${EXTENSION_LOG_PREFIX} 使用 window.getRequestHeaders()`,
+        authHeaders,
+      );
     } else if (typeof globalThis.getRequestHeaders === "function") {
       authHeaders = globalThis.getRequestHeaders();
+      console.log(
+        `${EXTENSION_LOG_PREFIX} 使用 globalThis.getRequestHeaders()`,
+        authHeaders,
+      );
+    } else {
+      console.warn(
+        `${EXTENSION_LOG_PREFIX} getRequestHeaders 不存在，尝试查找...`,
+      );
+      console.log(
+        `${EXTENSION_LOG_PREFIX} window.SillyTavern:`,
+        window.SillyTavern,
+      );
     }
   } catch (e) {
     console.warn(`${EXTENSION_LOG_PREFIX} 无法获取认证头，继续尝试...`, e);
   }
 
+  const finalHeaders = {
+    ...authHeaders,
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+  console.log(`${EXTENSION_LOG_PREFIX} 最终请求头:`, finalHeaders);
+
   try {
     const response = await fetch(url, {
       ...options,
-      headers: {
-        ...authHeaders,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers: finalHeaders,
     });
 
     if (!response.ok) {
