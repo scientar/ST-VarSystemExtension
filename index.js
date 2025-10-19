@@ -725,41 +725,19 @@ let snapshotEditorButtons = null;
 async function callPluginAPI(endpoint, options = {}) {
   const url = `${PLUGIN_BASE_URL}${endpoint}`;
 
-  // 尝试获取 SillyTavern 的请求头（包含 CSRF token）
-  let authHeaders = {};
-  try {
-    // getRequestHeaders 可能在全局作用域中
-    if (typeof window.getRequestHeaders === "function") {
-      authHeaders = window.getRequestHeaders();
-      console.log(
-        `${EXTENSION_LOG_PREFIX} 使用 window.getRequestHeaders()`,
-        authHeaders,
-      );
-    } else if (typeof globalThis.getRequestHeaders === "function") {
-      authHeaders = globalThis.getRequestHeaders();
-      console.log(
-        `${EXTENSION_LOG_PREFIX} 使用 globalThis.getRequestHeaders()`,
-        authHeaders,
-      );
-    } else {
-      console.warn(
-        `${EXTENSION_LOG_PREFIX} getRequestHeaders 不存在，尝试查找...`,
-      );
-      console.log(
-        `${EXTENSION_LOG_PREFIX} window.SillyTavern:`,
-        window.SillyTavern,
-      );
-    }
-  } catch (e) {
-    console.warn(`${EXTENSION_LOG_PREFIX} 无法获取认证头，继续尝试...`, e);
+  // 获取 SillyTavern 的 CSRF token
+  // token 是 SillyTavern 在 script.js 中初始化的全局变量
+  const csrfToken = window.token || globalThis.token;
+
+  if (!csrfToken) {
+    console.error(`${EXTENSION_LOG_PREFIX} CSRF token 不存在！这不应该发生。`);
   }
 
   const finalHeaders = {
-    ...authHeaders,
     "Content-Type": "application/json",
+    "X-CSRF-Token": csrfToken,
     ...options.headers,
   };
-  console.log(`${EXTENSION_LOG_PREFIX} 最终请求头:`, finalHeaders);
 
   try {
     const response = await fetch(url, {
