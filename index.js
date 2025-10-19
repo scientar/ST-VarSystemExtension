@@ -922,6 +922,12 @@ function renderSnapshotsList() {
   });
 
   if (snapshotsState.filteredSnapshots.length === 0) {
+    // 恢复空状态的原始 HTML 内容
+    emptyState.innerHTML = `
+      <i class="fa-solid fa-inbox fa-3x" style="margin-bottom: 10px; opacity: 0.5"></i>
+      <p data-i18n="No snapshots yet">暂无全局快照</p>
+      <p style="font-size: 12px" data-i18n="Click New to create one">点击"新建快照"创建第一个快照</p>
+    `;
     emptyState.style.display = "block";
     return;
   }
