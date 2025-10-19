@@ -793,13 +793,23 @@ async function ensureSnapshotEditorInstance() {
   }
 
   try {
-    snapshotsState.editorController = await createVariableBlockEditor(
+    snapshotsState.editorController = createVariableBlockEditor({
       container,
-      () => {
+      initialValue: {},
+      styleUrl: JSON_EDITOR_STYLE_URL,
+      scriptUrl: JSON_EDITOR_SCRIPT_URL,
+      readOnly: false,
+      onChange: () => {
         // onChange callback - 内容变化时更新状态
         updateSnapshotEditorStatus("已修改，未保存", "warn");
       },
-    );
+      onFallback: () => {
+        console.warn(
+          `${EXTENSION_LOG_PREFIX} 快照编辑器 JSON 资源加载失败，已降级为纯文本模式`,
+        );
+        updateSnapshotEditorStatus("编辑器已降级为纯文本模式", "warn");
+      },
+    });
     console.log(`${EXTENSION_LOG_PREFIX} 快照编辑器已初始化`);
   } catch (error) {
     console.error(`${EXTENSION_LOG_PREFIX} 快照编辑器初始化失败:`, error);
@@ -820,27 +830,50 @@ function updateSnapshotEditorStatus(message, type = "info") {
 }
 
 async function loadGlobalSnapshots() {
-  if (snapshotsState.loading) return;
+  if (snapshotsState.loading) {
+    console.log(`${EXTENSION_LOG_PREFIX} 快照正在加载中，跳过重复请求`);
+    return;
+  }
 
   snapshotsState.loading = true;
   updateSnapshotsListUI("加载中...");
 
   try {
+    console.log(`${EXTENSION_LOG_PREFIX} 开始加载全局快照...`);
     const data = await callPluginAPI("/global-snapshots");
     snapshotsState.snapshots = data.snapshots || [];
-    snapshotsState.filteredSnapshots = snapshotsState.snapshots;
 
     console.log(
       `${EXTENSION_LOG_PREFIX} 已加载 ${snapshotsState.snapshots.length} 个全局快照`,
+      snapshotsState.snapshots,
     );
 
     applySnapshotFilters();
     renderSnapshotsList();
   } catch (error) {
     console.error(`${EXTENSION_LOG_PREFIX} 加载全局快照失败:`, error);
-    updateSnapshotsListUI(`加载失败: ${error.message}`);
+
+    // 清空快照列表
+    snapshotsState.snapshots = [];
+    snapshotsState.filteredSnapshots = [];
+
+    // 根据错误类型显示不同的提示
+    let errorMessage = "加载失败";
+    if (error.message.includes("插件未安装")) {
+      errorMessage =
+        "插件未安装或未启用<br><br>全局快照功能需要安装 ST-VarSystemPlugin 插件";
+    } else if (error.message.includes("Failed to fetch")) {
+      errorMessage =
+        "无法连接到插件 API<br><br>请确保 SillyTavern 服务器正在运行";
+    } else {
+      errorMessage = `加载失败: ${error.message}`;
+    }
+
+    updateSnapshotsListUI(errorMessage);
+    renderSnapshotsList(); // 确保显示空列表
   } finally {
     snapshotsState.loading = false;
+    console.log(`${EXTENSION_LOG_PREFIX} 加载全局快照完成，loading = false`);
   }
 }
 
