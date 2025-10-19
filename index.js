@@ -5,6 +5,7 @@ import {
   writeExtensionField,
 } from "/scripts/extensions.js";
 import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
+import { getRequestHeaders } from "/scripts/script.js";
 import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
 
 const EXTENSION_NAMESPACE = "st-var-system";
@@ -728,6 +729,7 @@ async function callPluginAPI(endpoint, options = {}) {
     const response = await fetch(url, {
       ...options,
       headers: {
+        ...getRequestHeaders(),
         "Content-Type": "application/json",
         ...options.headers,
       },
