@@ -1031,17 +1031,28 @@ function createSnapshotCard(snapshot) {
   card.style.cssText = `
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 6px;
-    padding: 12px;
+    padding: 14px;
     background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
   `;
+
+  // 添加悬停效果
+  card.addEventListener("mouseenter", () => {
+    card.style.borderColor = "var(--SmartThemeQuoteColor, #4a9eff)";
+    card.style.boxShadow = "0 2px 8px rgba(74, 158, 255, 0.2)";
+  });
+  card.addEventListener("mouseleave", () => {
+    card.style.borderColor = "var(--SmartThemeBorderColor, #333)";
+    card.style.boxShadow = "none";
+  });
 
   // 标题
   const title = document.createElement("h4");
   title.textContent = snapshot.name;
-  title.style.cssText = "margin: 0; font-size: 16px;";
+  title.style.cssText = "margin: 0; font-size: 16px; font-weight: 600;";
   card.appendChild(title);
 
   // 描述
@@ -1061,11 +1072,13 @@ function createSnapshotCard(snapshot) {
       const tagSpan = document.createElement("span");
       tagSpan.textContent = tag;
       tagSpan.style.cssText = `
-        padding: 2px 8px;
+        padding: 3px 10px;
         font-size: 11px;
-        border-radius: 3px;
+        border-radius: 12px;
         background: var(--SmartThemeQuoteColor, #4a9eff);
         color: white;
+        font-weight: 500;
+        letter-spacing: 0.3px;
       `;
       tagsContainer.appendChild(tagSpan);
     });
@@ -1100,14 +1113,17 @@ function createSnapshotCard(snapshot) {
       text: "删除",
       icon: "fa-trash",
       action: () => deleteSnapshot(snapshot.snapshotId),
+      danger: true,
     },
   ];
 
   buttons.forEach((btnDef) => {
     const btn = document.createElement("button");
     btn.className = "menu_button interactable";
-    btn.style.cssText = "padding: 4px 8px; font-size: 12px;";
-    btn.innerHTML = `<i class="fa-solid ${btnDef.icon} fa-fw"></i> ${btnDef.text}`;
+    // 添加 white-space: nowrap 防止文字换行，调整内边距
+    const dangerStyle = btnDef.danger ? "color: #ff6b6b;" : "";
+    btn.style.cssText = `padding: 4px 10px; font-size: 12px; white-space: nowrap; ${dangerStyle}`;
+    btn.innerHTML = `<i class="fa-solid ${btnDef.icon} fa-fw"></i> <span>${btnDef.text}</span>`;
     btn.addEventListener("click", btnDef.action);
     actions.appendChild(btn);
   });

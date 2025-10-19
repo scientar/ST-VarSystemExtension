@@ -202,15 +202,15 @@
           <!-- 列表视图 -->
           <div
             id="var_system_snapshots_list_view"
-            style="display: flex; flex-direction: column; gap: 10px"
+            style="display: flex; flex-direction: column; gap: 12px"
           >
             <!-- 工具栏 -->
             <div
               style="
-                display: flex;
+                display: grid;
+                grid-template-columns: 1fr auto auto auto;
                 gap: 8px;
                 align-items: center;
-                flex-wrap: wrap;
               "
             >
               <input
@@ -219,21 +219,22 @@
                 placeholder="搜索快照..."
                 data-i18n="[placeholder]Search snapshots"
                 style="
-                  flex: 1;
-                  min-width: 150px;
-                  padding: 6px 10px;
+                  padding: 8px 12px;
                   border: 1px solid var(--SmartThemeBorderColor, #333);
-                  border-radius: 4px;
+                  border-radius: 6px;
                   background: var(--SmartThemeBlurTintColor, transparent);
+                  font-size: 13px;
                 "
               />
               <select
                 id="var_system_snapshot_tag_filter"
                 style="
-                  padding: 6px 10px;
+                  padding: 8px 12px;
                   border: 1px solid var(--SmartThemeBorderColor, #333);
-                  border-radius: 4px;
+                  border-radius: 6px;
                   background: var(--SmartThemeBlurTintColor, transparent);
+                  font-size: 13px;
+                  min-width: 120px;
                 "
               >
                 <option value="" data-i18n="All tags">所有标签</option>
@@ -242,16 +243,16 @@
                 id="var_system_snapshot_new"
                 class="menu_button interactable"
                 type="button"
-                style="padding: 6px 12px; white-space: nowrap"
+                style="padding: 8px 14px; white-space: nowrap; font-size: 13px"
               >
                 <i class="fa-solid fa-plus fa-fw"></i>
-                <span data-i18n="New snapshot">新建快照</span>
+                <span data-i18n="New snapshot">新建</span>
               </button>
               <button
                 id="var_system_snapshot_refresh"
                 class="menu_button interactable"
                 type="button"
-                style="padding: 6px 12px; white-space: nowrap"
+                style="padding: 8px 14px; white-space: nowrap; font-size: 13px"
               >
                 <i class="fa-solid fa-rotate fa-fw"></i>
                 <span data-i18n="Refresh">刷新</span>
@@ -301,6 +302,8 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                padding-bottom: 8px;
+                border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
               "
             >
               <h4 id="var_system_snapshot_editor_title" style="margin: 0">
@@ -310,7 +313,12 @@
                 id="var_system_snapshot_editor_back"
                 class="menu_button interactable"
                 type="button"
-                style="padding: 4px 8px"
+                style="
+                  padding: 6px 12px;
+                  white-space: nowrap;
+                  font-size: 13px;
+                  color: var(--SmartThemeBodyColor, #ccc);
+                "
               >
                 <i class="fa-solid fa-arrow-left fa-fw"></i>
                 <span data-i18n="Back to list">返回列表</span>
@@ -401,12 +409,25 @@
             ></div>
 
             <!-- 操作按钮 -->
-            <div style="display: flex; gap: 6px; justify-content: flex-end">
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                justify-content: flex-end;
+                padding-top: 8px;
+                border-top: 1px solid var(--SmartThemeBorderColor, #333);
+              "
+            >
               <button
                 id="var_system_snapshot_editor_cancel"
                 class="menu_button interactable"
                 type="button"
-                style="padding: 6px 12px"
+                style="
+                  padding: 8px 16px;
+                  white-space: nowrap;
+                  font-size: 13px;
+                  color: var(--SmartThemeBodyColor, #ccc);
+                "
               >
                 <span data-i18n="Cancel">取消</span>
               </button>
@@ -414,10 +435,15 @@
                 id="var_system_snapshot_editor_save"
                 class="menu_button interactable"
                 type="button"
-                style="padding: 6px 12px"
+                style="
+                  padding: 8px 16px;
+                  white-space: nowrap;
+                  font-size: 13px;
+                  font-weight: 500;
+                "
               >
                 <i class="fa-solid fa-save fa-fw"></i>
-                <span data-i18n="Save snapshot">保存快照</span>
+                <span data-i18n="Save snapshot">保存</span>
               </button>
             </div>
           </div>
