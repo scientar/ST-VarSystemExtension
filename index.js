@@ -84,55 +84,8 @@ function bindTemplateSection(rootElement) {
     void setEnabledForActiveCharacter(isChecked);
   });
 
-  // 模式切换按钮事件监听
-  const templateModeButtons = rootElement.querySelectorAll(
-    '.var-system-editor-mode-btn[data-editor="template"]',
-  );
-  templateModeButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const mode = btn.dataset.mode;
-      if (templateState.editorController?.setMode) {
-        templateState.editorController.setMode(mode);
-
-        // 更新按钮激活状态
-        templateModeButtons.forEach((b) => {
-          b.classList.remove("active");
-        });
-        btn.classList.add("active");
-      }
-    });
-  });
-
   updateTemplateStatus("尚未加载模板", "info");
   updateTemplateControls();
-}
-
-/**
- * 同步编辑器模式切换按钮的激活状态
- * @param {string} editorType - 'template' 或 'snapshot'
- */
-function syncEditorModeButtons(editorType) {
-  const controller =
-    editorType === "template"
-      ? templateState.editorController
-      : snapshotsState.editorController;
-
-  if (!controller || typeof controller.getMode !== "function") {
-    return;
-  }
-
-  const currentMode = controller.getMode() || "text";
-  const buttons = document.querySelectorAll(
-    `.var-system-editor-mode-btn[data-editor="${editorType}"]`,
-  );
-
-  buttons.forEach((btn) => {
-    if (btn.dataset.mode === currentMode) {
-      btn.classList.add("active");
-    } else {
-      btn.classList.remove("active");
-    }
-  });
 }
 
 function updateTemplateStatus(message, level = "info") {
@@ -243,9 +196,6 @@ async function ensureEditorInstance({ readOnly = false } = {}) {
 
   try {
     await templateState.editorController.ensureReady();
-
-    // 同步模式切换按钮状态
-    syncEditorModeButtons("template");
   } catch (error) {
     console.error(EXTENSION_LOG_PREFIX, "初始化编辑器失败", error);
     return null;
@@ -1601,25 +1551,6 @@ function bindSnapshotsSection(rootElement) {
   // 编辑器：取消
   snapshotEditorButtons.cancel?.addEventListener("click", () => {
     void cancelSnapshotEditor();
-  });
-
-  // 快照编辑器模式切换按钮
-  const snapshotModeButtons = rootElement.querySelectorAll(
-    '.var-system-editor-mode-btn[data-editor="snapshot"]',
-  );
-  snapshotModeButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const mode = btn.dataset.mode;
-      if (snapshotsState.editorController?.setMode) {
-        snapshotsState.editorController.setMode(mode);
-
-        // 更新按钮激活状态
-        snapshotModeButtons.forEach((b) => {
-          b.classList.remove("active");
-        });
-        btn.classList.add("active");
-      }
-    });
   });
 }
 
