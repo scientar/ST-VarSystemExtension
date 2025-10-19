@@ -1071,14 +1071,11 @@ async function editSnapshot(snapshotId) {
     // 从插件加载完整快照数据
     const snapshot = await callPluginAPI(`/global-snapshots/${snapshotId}`);
 
-    // 初始化编辑器
-    await ensureSnapshotEditorInstance();
-
     // 设置编辑状态
     snapshotsState.editingSnapshotId = snapshotId;
     snapshotsState.draftSnapshot = { ...snapshot };
 
-    // 切换到编辑视图
+    // 先切换到编辑视图（这样容器才可见）
     switchSnapshotView("editor");
 
     // 更新标题
@@ -1096,9 +1093,14 @@ async function editSnapshot(snapshotId) {
       ? snapshot.tags.join(", ")
       : "";
 
+    // 在视图切换后初始化编辑器
+    await ensureSnapshotEditorInstance();
+
     // 设置编辑器内容
     if (snapshotsState.editorController) {
       snapshotsState.editorController.set({ json: snapshot.snapshotBody });
+    } else {
+      console.error(`${EXTENSION_LOG_PREFIX} 编辑器未能初始化`);
     }
 
     updateSnapshotEditorStatus("编辑快照，修改后点击保存", "info");
@@ -1226,6 +1228,9 @@ async function cancelSnapshotEditor() {
 
   // 返回列表视图
   switchSnapshotView("list");
+
+  // 确保列表正确显示
+  renderSnapshotsList();
 }
 
 /**
@@ -1274,9 +1279,6 @@ async function deleteSnapshot(snapshotId) {
 async function createNewSnapshot() {
   console.log(`${EXTENSION_LOG_PREFIX} 新建快照`);
 
-  // 初始化编辑器
-  await ensureSnapshotEditorInstance();
-
   // 重置编辑状态
   snapshotsState.editingSnapshotId = null;
   snapshotsState.draftSnapshot = {
@@ -1286,7 +1288,7 @@ async function createNewSnapshot() {
     snapshotBody: { metadata: {}, variables: {} },
   };
 
-  // 切换到编辑视图
+  // 先切换到编辑视图（这样容器才可见）
   switchSnapshotView("editor");
 
   // 更新标题
@@ -1300,11 +1302,16 @@ async function createNewSnapshot() {
   document.getElementById("var_system_snapshot_description").value = "";
   document.getElementById("var_system_snapshot_tags").value = "";
 
+  // 在视图切换后初始化编辑器
+  await ensureSnapshotEditorInstance();
+
   // 设置编辑器内容
   if (snapshotsState.editorController) {
     snapshotsState.editorController.set({
       json: snapshotsState.draftSnapshot.snapshotBody,
     });
+  } else {
+    console.error(`${EXTENSION_LOG_PREFIX} 编辑器未能初始化`);
   }
 
   updateSnapshotEditorStatus("新建快照，填写信息后点击保存", "info");
