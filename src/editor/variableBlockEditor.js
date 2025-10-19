@@ -296,10 +296,31 @@ export function createVariableBlockEditor(options = {}) {
     targetContainer = resolveContainer(nextContainer, containerId);
   }
 
+  // 代理方法：直接调用底层编辑器实例的 set/get（如果已初始化）
+  function set(content) {
+    if (editorInstance && typeof editorInstance.set === "function") {
+      return editorInstance.set(content);
+    }
+    // 如果还没初始化，通过 setValue 缓存
+    if (content?.json !== undefined) {
+      setValue(content.json);
+    }
+  }
+
+  function get() {
+    if (editorInstance && typeof editorInstance.get === "function") {
+      return editorInstance.get();
+    }
+    // 降级：返回当前值
+    return { json: cloneValue(currentValue ?? {}) };
+  }
+
   return {
     ensureReady,
     setValue,
     getValue,
+    set, // 新增：代理底层实例的 set 方法
+    get, // 新增：代理底层实例的 get 方法
     destroy,
     isFallback,
     setContainer,

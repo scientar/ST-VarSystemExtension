@@ -810,6 +810,10 @@ async function ensureSnapshotEditorInstance() {
         updateSnapshotEditorStatus("编辑器已降级为纯文本模式", "warn");
       },
     });
+
+    // 关键：必须调用 ensureReady() 来实际初始化编辑器 UI
+    await snapshotsState.editorController.ensureReady();
+
     console.log(`${EXTENSION_LOG_PREFIX} 快照编辑器已初始化`);
   } catch (error) {
     console.error(`${EXTENSION_LOG_PREFIX} 快照编辑器初始化失败:`, error);
