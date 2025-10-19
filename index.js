@@ -722,15 +722,46 @@ let snapshotEditorButtons = null;
 /**
  * 调用插件 API
  */
+// CSRF token 缓存
+let cachedCsrfToken = null;
+
+/**
+ * 获取 CSRF token（带缓存）
+ */
+async function getCsrfToken() {
+  // 1. 尝试从全局变量读取（如果 SillyTavern 已初始化）
+  if (window.token || globalThis.token) {
+    return window.token || globalThis.token;
+  }
+
+  // 2. 使用缓存的 token
+  if (cachedCsrfToken) {
+    return cachedCsrfToken;
+  }
+
+  // 3. 主动获取 token
+  try {
+    const response = await fetch("/csrf-token");
+    if (response.ok) {
+      const data = await response.json();
+      cachedCsrfToken = data.token;
+      return cachedCsrfToken;
+    }
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 获取 CSRF token 失败:`, error);
+  }
+
+  return null;
+}
+
 async function callPluginAPI(endpoint, options = {}) {
   const url = `${PLUGIN_BASE_URL}${endpoint}`;
 
-  // 获取 SillyTavern 的 CSRF token
-  // token 是 SillyTavern 在 script.js 中初始化的全局变量
-  const csrfToken = window.token || globalThis.token;
+  // 获取 CSRF token
+  const csrfToken = await getCsrfToken();
 
   if (!csrfToken) {
-    console.error(`${EXTENSION_LOG_PREFIX} CSRF token 不存在！这不应该发生。`);
+    console.error(`${EXTENSION_LOG_PREFIX} 无法获取 CSRF token，请求可能失败`);
   }
 
   const finalHeaders = {
