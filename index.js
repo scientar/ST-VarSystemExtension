@@ -749,6 +749,31 @@ async function getCsrfToken() {
   return null;
 }
 
+/**
+ * 规范化快照数据（兼容旧格式）
+ * 旧格式：{ metadata: {...}, variables: {...} }
+ * 新格式：{ ... }（直接是变量对象）
+ */
+function normalizeSnapshotBody(snapshotBody) {
+  if (!snapshotBody || typeof snapshotBody !== "object") {
+    return {};
+  }
+
+  // 检测旧格式：同时包含 metadata 和 variables 字段
+  const hasMetadata = "metadata" in snapshotBody;
+  const hasVariables = "variables" in snapshotBody;
+
+  if (hasMetadata && hasVariables) {
+    console.log(
+      `${EXTENSION_LOG_PREFIX} 检测到旧格式快照，自动提取 variables 字段`,
+    );
+    return snapshotBody.variables || {};
+  }
+
+  // 新格式或其他情况，直接返回
+  return snapshotBody;
+}
+
 async function callPluginAPI(endpoint, options = {}) {
   const url = `${PLUGIN_BASE_URL}${endpoint}`;
 
@@ -1169,8 +1194,11 @@ async function loadSnapshotToCharacter(snapshotId) {
 
     if (!confirmed) return;
 
+    // 规范化快照数据（兼容旧格式）
+    const normalizedBody = normalizeSnapshotBody(snapshot.snapshotBody);
+
     // 将快照内容写入角色模板
-    templateState.draftBody = snapshot.snapshotBody;
+    templateState.draftBody = normalizedBody;
     templateState.dirty = true;
 
     // 更新编辑器显示
@@ -1236,9 +1264,12 @@ async function editSnapshot(snapshotId) {
     // 在视图切换后初始化编辑器
     await ensureSnapshotEditorInstance();
 
+    // 规范化快照数据（兼容旧格式）
+    const normalizedBody = normalizeSnapshotBody(snapshot.snapshotBody);
+
     // 设置编辑器内容
     if (snapshotsState.editorController) {
-      snapshotsState.editorController.set({ json: snapshot.snapshotBody });
+      snapshotsState.editorController.set({ json: normalizedBody });
     } else {
       console.error(`${EXTENSION_LOG_PREFIX} 编辑器未能初始化`);
     }
