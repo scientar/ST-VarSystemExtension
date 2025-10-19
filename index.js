@@ -5,7 +5,6 @@ import {
   writeExtensionField,
 } from "/scripts/extensions.js";
 import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
-import { getRequestHeaders } from "/scripts/script.js";
 import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
 
 const EXTENSION_NAMESPACE = "st-var-system";
@@ -725,11 +724,25 @@ let snapshotEditorButtons = null;
  */
 async function callPluginAPI(endpoint, options = {}) {
   const url = `${PLUGIN_BASE_URL}${endpoint}`;
+
+  // 尝试获取 SillyTavern 的请求头（包含 CSRF token）
+  let authHeaders = {};
+  try {
+    // getRequestHeaders 可能在全局作用域中
+    if (typeof window.getRequestHeaders === "function") {
+      authHeaders = window.getRequestHeaders();
+    } else if (typeof globalThis.getRequestHeaders === "function") {
+      authHeaders = globalThis.getRequestHeaders();
+    }
+  } catch (e) {
+    console.warn(`${EXTENSION_LOG_PREFIX} 无法获取认证头，继续尝试...`, e);
+  }
+
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
-        ...getRequestHeaders(),
+        ...authHeaders,
         "Content-Type": "application/json",
         ...options.headers,
       },
