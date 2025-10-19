@@ -13,6 +13,7 @@ export function createVariableBlockEditor(options = {}) {
     onChange,
     onFallback,
     onReady,
+    defaultMode = null, // 新增：默认模式（'tree', 'text', 'table'）
   } = options;
 
   let targetContainer = resolveContainer(container, containerId);
@@ -72,13 +73,18 @@ export function createVariableBlockEditor(options = {}) {
         throw new Error("JSON 编辑器模块未提供 createJSONEditor");
       }
 
+      // 从 localStorage 读取用户偏好的模式，或使用传入的默认模式
+      const savedMode = localStorage.getItem("varSystemEditorMode");
+      const initialMode = savedMode || defaultMode || "text";
+
       editorInstance = createJSONEditor({
         target: targetContainer,
         props: {
           content: { json: currentValue ?? {} },
-          mainMenuBar: false,
-          navigationBar: false,
-          statusBar: false,
+          mode: initialMode, // 使用保存的或默认的模式
+          mainMenuBar: true, // 保留主菜单（格式化、压缩等功能）
+          navigationBar: false, // 隐藏导航栏（节省空间）
+          statusBar: false, // 隐藏状态栏（节省空间）
           readOnly,
           onChange: (content, previousContent, metadata) => {
             if (silentUpdate) {
@@ -89,7 +95,6 @@ export function createVariableBlockEditor(options = {}) {
               onChange(content, previousContent, metadata);
             }
           },
-          modes: ["tree", "text"],
         },
       });
 
@@ -315,12 +320,39 @@ export function createVariableBlockEditor(options = {}) {
     return { json: cloneValue(currentValue ?? {}) };
   }
 
+  /**
+   * 切换编辑器模式
+   * @param {string} mode - 'tree', 'text', 或 'table'
+   */
+  function setMode(mode) {
+    if (!editorInstance || typeof editorInstance.updateProps !== "function") {
+      console.warn("[VariableBlockEditor] 编辑器未初始化或不支持 updateProps");
+      return;
+    }
+
+    // 保存用户偏好到 localStorage
+    localStorage.setItem("varSystemEditorMode", mode);
+
+    // 更新编辑器模式
+    editorInstance.updateProps({ mode });
+  }
+
+  /**
+   * 获取当前编辑器模式
+   * @returns {string|null}
+   */
+  function getMode() {
+    return localStorage.getItem("varSystemEditorMode");
+  }
+
   return {
     ensureReady,
     setValue,
     getValue,
     set, // 新增：代理底层实例的 set 方法
     get, // 新增：代理底层实例的 get 方法
+    setMode, // 新增：切换编辑器模式
+    getMode, // 新增：获取当前模式
     destroy,
     isFallback,
     setContainer,
