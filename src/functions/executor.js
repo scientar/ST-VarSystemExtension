@@ -232,3 +232,33 @@ export class FunctionExecutor {
  * 全局单例实例
  */
 export const functionExecutor = new FunctionExecutor();
+
+/**
+ * 执行函数调用流程的简化接口
+ * @param {Array<{functionDef, args, index, fullMatch}>} activeCalls - 主动函数调用列表
+ * @param {any} inputSnapshot - 输入快照
+ * @returns {Promise<any>} 处理后的快照
+ */
+export async function executeFunctionPipeline(activeCalls, inputSnapshot) {
+  // 动态导入 functionRegistry 以获取被动函数
+  const { functionRegistry } = await import('./registry.js');
+
+  // 获取被动函数列表
+  const passiveFunctions = functionRegistry.getPassiveFunctions();
+
+  // 构建执行上下文（基本信息）
+  const context = {
+    timestamp: Date.now(),
+  };
+
+  // 执行完整流程
+  const result = functionExecutor.executeAll(
+    inputSnapshot,
+    activeCalls,
+    passiveFunctions,
+    context
+  );
+
+  // 返回最终快照
+  return result.snapshot;
+}
