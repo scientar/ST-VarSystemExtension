@@ -1,11 +1,22 @@
-import { event_types, eventSource } from "/scripts/events.js";
 import {
-  getContext,
+  event_types,
+  eventSource,
   renderExtensionTemplateAsync,
   writeExtensionField,
-} from "/scripts/extensions.js";
-import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
+} from "../../../../extensions.js";
+import { callGenericPopup, POPUP_TYPE } from "../../../../popup.js";
 import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
+import {
+  registerEventListeners,
+  unregisterEventListeners,
+} from "./src/events/index.js";
+import { initFunctionLibrary } from "./src/ui/functionLibrary.js";
+import { initMessageSnapshots } from "./src/ui/messageSnapshots.js";
+import {
+  initReprocessButton,
+  updateButtonVisibility,
+} from "./src/ui/reprocessButton.js";
+import { initSettings } from "./src/ui/settings.js";
 
 const EXTENSION_NAMESPACE = "st-var-system";
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";
@@ -242,7 +253,7 @@ async function discardTemplateChanges() {
 }
 
 async function refreshTemplateForActiveCharacter(force = false) {
-  const context = getContext();
+  const context = window.SillyTavern.getContext();
   const activeCharacterId = context.characterId;
 
   if (activeCharacterId == null) {
@@ -309,7 +320,7 @@ async function refreshTemplateForActiveCharacter(force = false) {
 }
 
 async function setEnabledForActiveCharacter(nextEnabled) {
-  const context = getContext();
+  const context = window.SillyTavern.getContext();
   const characterId = context.characterId;
 
   if (characterId == null) {
@@ -364,7 +375,7 @@ async function setEnabledForActiveCharacter(nextEnabled) {
 }
 
 async function clearTemplateForActiveCharacter() {
-  const context = getContext();
+  const context = window.SillyTavern.getContext();
   const characterId = context.characterId;
 
   if (characterId == null) {
@@ -444,7 +455,7 @@ async function saveCurrentTemplate() {
     return;
   }
 
-  const context = getContext();
+  const context = window.SillyTavern.getContext();
   const characterId = context.characterId;
 
   if (characterId == null) {
@@ -483,7 +494,7 @@ async function saveCurrentTemplate() {
  * 将当前角色模板保存为全局快照
  */
 async function saveTemplateAsGlobalSnapshot() {
-  const context = getContext();
+  const context = window.SillyTavern.getContext();
   if (!context.characterId) {
     await callGenericPopup("请先选择一个角色", POPUP_TYPE.TEXT, "", {
       okButton: "确定",
@@ -677,9 +688,16 @@ function switchTab(tabName) {
 
   console.log(`${EXTENSION_LOG_PREFIX} 切换到标签页: ${tabName}`);
 
-  // 如果切换到全局快照标签页，自动加载快照列表
+  // 标签页切换后的初始化逻辑
   if (tabName === "global") {
+    // 全局快照：自动加载快照列表
     void loadGlobalSnapshots();
+  } else if (tabName === "functions") {
+    // 函数库：可以在这里触发刷新等操作
+    console.log(`${EXTENSION_LOG_PREFIX} 函数库标签页已激活`);
+  } else if (tabName === "messages") {
+    // 楼层快照：可以在这里触发刷新等操作
+    console.log(`${EXTENSION_LOG_PREFIX} 楼层快照标签页已激活`);
   }
 }
 
@@ -1176,7 +1194,7 @@ function updateSnapshotsListUI(message) {
  * 将快照应用到当前角色
  */
 async function loadSnapshotToCharacter(snapshotId) {
-  const context = getContext();
+  const context = window.SillyTavern.getContext();
   if (!context.characterId) {
     await callGenericPopup("请先选择一个角色", POPUP_TYPE.TEXT, "", {
       okButton: "确定",
@@ -1554,6 +1572,109 @@ function bindSnapshotsSection(rootElement) {
   });
 }
 
+/**
+ * 绑定函数库区域的事件（Phase 4）
+ */
+async function bindFunctionsSection(rootElement) {
+  if (!rootElement) {
+    return;
+  }
+
+  const functionsContainer = rootElement.querySelector(
+    "#var_system_functions_section",
+  );
+  if (!functionsContainer) {
+    console.warn(`${EXTENSION_LOG_PREFIX} 找不到函数库容器`);
+    return;
+  }
+
+  try {
+    // 加载函数库 UI 模板
+    const functionLibraryHtml = await fetch(
+      "/scripts/extensions/third-party/ST-VarSystemExtension/src/ui/functionLibrary.html",
+    ).then((res) => res.text());
+
+    functionsContainer.innerHTML = functionLibraryHtml;
+
+    // 加载 CSS 样式
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href =
+      "/scripts/extensions/third-party/ST-VarSystemExtension/src/ui/phase4.css";
+    document.head.appendChild(link);
+
+    // 初始化函数库
+    await initFunctionLibrary();
+    console.log(`${EXTENSION_LOG_PREFIX} 函数库标签页已加载`);
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 加载函数库失败:`, error);
+  }
+}
+
+/**
+ * 绑定楼层快照区域的事件（Phase 4）
+ */
+async function bindMessagesSection(rootElement) {
+  if (!rootElement) {
+    return;
+  }
+
+  const messagesContainer = rootElement.querySelector(
+    "#var_system_messages_section",
+  );
+  if (!messagesContainer) {
+    console.warn(`${EXTENSION_LOG_PREFIX} 找不到楼层快照容器`);
+    return;
+  }
+
+  try {
+    // 加载楼层快照 UI 模板
+    const messageSnapshotsHtml = await fetch(
+      "/scripts/extensions/third-party/ST-VarSystemExtension/src/ui/messageSnapshots.html",
+    ).then((res) => res.text());
+
+    messagesContainer.innerHTML = messageSnapshotsHtml;
+
+    // 初始化楼层快照
+    await initMessageSnapshots();
+    console.log(`${EXTENSION_LOG_PREFIX} 楼层快照标签页已加载`);
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 加载楼层快照失败:`, error);
+  }
+}
+
+/**
+ * 绑定设置区域的事件（Phase 4）
+ */
+async function bindSettingsSection(rootElement) {
+  if (!rootElement) {
+    return;
+  }
+
+  const settingsContainer = rootElement.querySelector(
+    "#var_system_settings_section",
+  );
+  if (!settingsContainer) {
+    console.warn(`${EXTENSION_LOG_PREFIX} 找不到设置容器`);
+    return;
+  }
+
+  try {
+    // 加载设置 UI 模板
+    const settingsHtml = await fetch(
+      "/scripts/extensions/third-party/ST-VarSystemExtension/src/ui/settings.html",
+    ).then((res) => res.text());
+
+    settingsContainer.innerHTML = settingsHtml;
+
+    // 初始化设置
+    await initSettings();
+    console.log(`${EXTENSION_LOG_PREFIX} 设置标签页已加载`);
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 加载设置失败:`, error);
+  }
+}
+
 async function injectAppHeaderEntry() {
   if (document.querySelector("#var_system_drawer")) {
     return;
@@ -1606,6 +1727,9 @@ async function injectAppHeaderEntry() {
   bindTemplateSection(rootElement);
   bindTabSwitching(rootElement);
   bindSnapshotsSection(rootElement);
+  await bindFunctionsSection(rootElement);
+  await bindMessagesSection(rootElement);
+  await bindSettingsSection(rootElement);
 
   scheduleTemplateRefresh(true);
 
@@ -1617,6 +1741,19 @@ async function initExtension() {
   await injectAppHeaderEntry();
   eventSource.on(event_types.CHAT_CHANGED, onContextChanged);
   eventSource.on(event_types.CHARACTER_EDITOR_OPENED, onContextChanged);
+
+  // 注册变量系统事件监听器（Phase 3）
+  registerEventListeners();
+  console.log(`${EXTENSION_LOG_PREFIX} 事件监听器已注册`);
+
+  // 初始化"重新处理变量"按钮
+  initReprocessButton();
+  console.log(`${EXTENSION_LOG_PREFIX} 重新处理变量按钮已初始化`);
+
+  // 监听聊天和角色变化，更新按钮显示状态
+  eventSource.on(event_types.CHAT_CHANGED, updateButtonVisibility);
+  eventSource.on(event_types.MESSAGE_RECEIVED, updateButtonVisibility);
+  eventSource.on(event_types.CHARACTER_EDITOR_OPENED, updateButtonVisibility);
 }
 
 async function shutdownExtension() {
@@ -1626,6 +1763,19 @@ async function shutdownExtension() {
     event_types.CHARACTER_EDITOR_OPENED,
     onContextChanged,
   );
+  eventSource.removeListener(event_types.CHAT_CHANGED, updateButtonVisibility);
+  eventSource.removeListener(
+    event_types.MESSAGE_RECEIVED,
+    updateButtonVisibility,
+  );
+  eventSource.removeListener(
+    event_types.CHARACTER_EDITOR_OPENED,
+    updateButtonVisibility,
+  );
+
+  // 卸载变量系统事件监听器（Phase 3）
+  unregisterEventListeners();
+  console.log(`${EXTENSION_LOG_PREFIX} 事件监听器已卸载`);
 }
 
 // 允许外部在需要时显式调用

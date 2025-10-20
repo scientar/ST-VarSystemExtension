@@ -1,0 +1,512 @@
+/**
+ * 变量系统 UI 样式
+ * Phase 4: 函数库管理 + 楼层快照界面
+ */
+
+/* ==================== 通用样式 ==================== */
+
+.var-system-tab-content {
+  padding: 1rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.var-system-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: var(--SmartThemeBlurTintColor);
+  border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.var-system-toolbar-left,
+.var-system-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.var-system-scope-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  background: var(--SmartThemeBodyColor);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.var-system-scope-toggle input[type="radio"] {
+  margin-right: 0.5rem;
+}
+
+.var-system-scope-toggle:has(input:checked) {
+  background: var(--SmartThemeQuoteColor);
+}
+
+.var-system-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: var(--SmartThemeBorderColor);
+}
+
+.var-system-empty-state i {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.var-system-hint {
+  font-size: 0.875rem;
+  color: var(--grey70);
+  margin-top: 0.25rem;
+}
+
+.code-font {
+  font-family: "Courier New", monospace;
+  font-size: 0.875rem;
+}
+
+/* ==================== 函数库管理 ==================== */
+
+.var-system-function-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.var-system-function-card {
+  background: var(--SmartThemeBlurTintColor);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  padding: 1rem;
+  transition: box-shadow 0.2s;
+  cursor: default;
+}
+
+.var-system-function-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 拖拽中的样式 */
+.var-system-function-card.ui-sortable-helper {
+  opacity: 0.8;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  transform: rotate(2deg);
+}
+
+/* 拖拽占位符 */
+.var-system-sortable-placeholder {
+  background: var(--SmartThemeQuoteColor);
+  border: 2px dashed var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  visibility: visible;
+  height: auto;
+  min-height: 120px;
+}
+
+.var-system-function-card-header {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+/* 拖拽手柄 */
+.var-system-function-card .drag-handle {
+  cursor: grab;
+  color: var(--SmartThemeBorderColor);
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  transition: color 0.2s;
+}
+
+.var-system-function-card .drag-handle:hover {
+  color: var(--SmartThemeEmColor);
+}
+
+.var-system-function-card .drag-handle:active {
+  cursor: grabbing;
+}
+
+.var-system-function-enabled {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+  flex: 1;
+}
+
+.var-system-function-badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.var-system-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.var-system-badge-active {
+  background: #3498db;
+  color: white;
+}
+
+.var-system-badge-passive {
+  background: #9b59b6;
+  color: white;
+}
+
+.var-system-function-card-body {
+  margin-bottom: 0.75rem;
+}
+
+.var-system-function-description {
+  color: var(--SmartThemeEmColor);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.var-system-function-meta {
+  font-size: 0.8rem;
+  color: var(--grey70);
+}
+
+.var-system-function-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--SmartThemeBorderColor);
+}
+
+/* ==================== 函数编辑器 ==================== */
+
+.var-system-function-editor {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.var-system-form-group {
+  margin-bottom: 1rem;
+}
+
+.var-system-form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.var-system-form-group input[type="text"],
+.var-system-form-group select,
+.var-system-form-group textarea {
+  width: 100%;
+}
+
+.var-system-form-group textarea {
+  resize: vertical;
+}
+
+.var-system-form-group small {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+/* ==================== 提示词生成器 ==================== */
+
+.var-system-prompt-generator {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.var-system-prompt-output {
+  background: var(--SmartThemeBlurTintColor);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.var-system-prompt-output pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.var-system-prompt-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* ==================== 楼层快照界面 ==================== */
+
+.var-system-floor-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.var-system-floor-select {
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.var-system-jump-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.var-system-jump-group input {
+  width: 100px;
+}
+
+.var-system-floor-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--SmartThemeBlurTintColor);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.var-system-info-item {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.var-system-info-label {
+  font-weight: bold;
+  color: var(--SmartThemeEmColor);
+}
+
+.var-system-info-value {
+  color: var(--SmartThemeBodyColor);
+}
+
+.var-system-editor-container {
+  min-height: 400px;
+  margin-bottom: 1rem;
+}
+
+.var-system-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--SmartThemeBorderColor);
+  flex-wrap: wrap;
+}
+
+/* ==================== MVU 导入对话框 ==================== */
+
+.var-system-import-snapshot-dialog {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.var-system-import-snapshot-dialog textarea {
+  font-family: "Courier New", monospace;
+  font-size: 0.875rem;
+}
+
+/* ==================== 响应式调整 ==================== */
+
+@media (max-width: 768px) {
+  .var-system-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .var-system-toolbar-left,
+  .var-system-toolbar-right {
+    justify-content: center;
+  }
+
+  .var-system-function-list {
+    grid-template-columns: 1fr;
+  }
+
+  .var-system-floor-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* ==================== 设置标签页 ==================== */
+
+#var-system-settings-container {
+  padding: 1rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.var-system-settings-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--SmartThemeBlurTintColor);
+  border-radius: 8px;
+}
+
+.var-system-settings-section-title {
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--SmartThemeQuoteColor);
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.var-system-settings-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.var-system-setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--SmartThemeBodyColor);
+  border-radius: 6px;
+  gap: 1rem;
+}
+
+.var-system-setting-info {
+  flex: 1;
+}
+
+.var-system-setting-label {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.var-system-setting-description {
+  color: var(--grey70);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.var-system-setting-action {
+  flex-shrink: 0;
+}
+
+/* 清理进度 */
+.var-system-cleanup-progress {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--SmartThemeBodyColor);
+  border-radius: 6px;
+}
+
+.var-system-cleanup-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--black30alpha);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.var-system-cleanup-progress-fill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--SmartThemeBorderColor),
+    var(--SmartThemeQuoteColor)
+  );
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.var-system-cleanup-progress-text {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--grey70);
+}
+
+/* 清理结果 */
+.var-system-cleanup-result {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--SmartThemeBodyColor);
+  border-radius: 6px;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.var-system-cleanup-result-icon {
+  font-size: 2rem;
+  color: var(--green);
+  flex-shrink: 0;
+}
+
+.var-system-cleanup-result-text {
+  flex: 1;
+}
+
+.var-system-cleanup-result-text > div {
+  margin-bottom: 0.5rem;
+}
+
+.var-system-cleanup-result-text > div:last-child {
+  margin-bottom: 0;
+}
+
+#var-system-cleanup-result-summary {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+#var-system-cleanup-result-details {
+  color: var(--grey70);
+  font-size: 0.9rem;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+/* 响应式 - 设置页面 */
+@media (max-width: 768px) {
+  .var-system-setting-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .var-system-setting-action {
+    width: 100%;
+  }
+
+  .var-system-setting-action button {
+    width: 100%;
+  }
+
+  .var-system-cleanup-result {
+    flex-direction: column;
+  }
+
+  .var-system-cleanup-result-icon {
+    text-align: center;
+    font-size: 3rem;
+  }
+}

@@ -1,0 +1,79 @@
+<!-- 设置标签页 -->
+<div id="var-system-settings-container">
+  <!-- 清理快照区域 -->
+  <div class="var-system-settings-section">
+    <h3 class="var-system-settings-section-title">数据清理</h3>
+    <div class="var-system-settings-section-content">
+      <div class="var-system-setting-item">
+        <div class="var-system-setting-info">
+          <div class="var-system-setting-label">清理未使用的快照</div>
+          <div class="var-system-setting-description">
+            扫描所有聊天记录文件，删除数据库中不对应任何现存聊天记录的快照。
+            <br />
+            <strong>注意：</strong>此操作会永久删除孤立快照，无法恢复。
+          </div>
+        </div>
+        <div class="var-system-setting-action">
+          <button
+            id="var-system-cleanup-snapshots-btn"
+            class="menu_button"
+            type="button"
+          >
+            <i class="fa-solid fa-broom"></i>
+            开始清理
+          </button>
+        </div>
+      </div>
+
+      <!-- 清理进度提示 -->
+      <div
+        id="var-system-cleanup-progress"
+        class="var-system-cleanup-progress"
+        style="display: none"
+      >
+        <div class="var-system-cleanup-progress-bar">
+          <div
+            id="var-system-cleanup-progress-fill"
+            class="var-system-cleanup-progress-fill"
+          ></div>
+        </div>
+        <div
+          id="var-system-cleanup-progress-text"
+          class="var-system-cleanup-progress-text"
+        >
+          正在扫描聊天记录...
+        </div>
+      </div>
+
+      <!-- 清理结果 -->
+      <div
+        id="var-system-cleanup-result"
+        class="var-system-cleanup-result"
+        style="display: none"
+      >
+        <div class="var-system-cleanup-result-icon">
+          <i class="fa-solid fa-check-circle"></i>
+        </div>
+        <div class="var-system-cleanup-result-text">
+          <div id="var-system-cleanup-result-summary"></div>
+          <div id="var-system-cleanup-result-details"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 其他设置（未来扩展） -->
+  <div class="var-system-settings-section">
+    <h3 class="var-system-settings-section-title">其他设置</h3>
+    <div class="var-system-settings-section-content">
+      <div class="var-system-setting-item">
+        <div class="var-system-setting-info">
+          <div class="var-system-setting-label">更多设置即将推出</div>
+          <div class="var-system-setting-description">
+            未来版本将提供更多配置选项。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

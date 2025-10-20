@@ -1,0 +1,125 @@
+<!-- 楼层快照界面 -->
+<div id="var-system-message-snapshots" class="var-system-tab-content">
+  <!-- 顶部工具栏 -->
+  <div class="var-system-toolbar">
+    <div class="var-system-toolbar-left">
+      <div class="var-system-floor-selector-group">
+        <label for="var-system-floor-select">选择楼层：</label>
+        <select
+          id="var-system-floor-select"
+          class="text_pole var-system-floor-select"
+        >
+          <option value="">暂无快照楼层</option>
+        </select>
+      </div>
+      <div class="var-system-jump-group">
+        <input
+          type="number"
+          id="var-system-jump-input"
+          class="text_pole"
+          placeholder="输入层号"
+          min="0"
+        />
+        <button id="var-system-jump-btn" class="menu_button">
+          <i class="fa-solid fa-arrow-right"></i>
+          <span>跳转</span>
+        </button>
+      </div>
+      <button
+        id="var-system-refresh-snapshot-btn"
+        class="menu_button"
+        title="刷新"
+      >
+        <i class="fa-solid fa-refresh"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- 当前楼层信息 -->
+  <div
+    id="var-system-current-floor-info"
+    class="var-system-floor-info"
+    style="display: none"
+  >
+    <div class="var-system-info-item">
+      <span class="var-system-info-label">层号：</span>
+      <span id="current-floor-number" class="var-system-info-value">-</span>
+    </div>
+    <div class="var-system-info-item">
+      <span class="var-system-info-label">Swipe ID：</span>
+      <span id="current-swipe-id" class="var-system-info-value">-</span>
+    </div>
+    <div class="var-system-info-item">
+      <span class="var-system-info-label">消息时间：</span>
+      <span id="current-message-time" class="var-system-info-value">-</span>
+    </div>
+    <div class="var-system-info-item">
+      <span class="var-system-info-label">快照 ID：</span>
+      <span id="current-snapshot-id" class="var-system-info-value code-font"
+        >-</span
+      >
+    </div>
+  </div>
+
+  <!-- 编辑器容器 -->
+  <div
+    id="var-system-snapshot-editor-container"
+    class="var-system-editor-container"
+  >
+    <div class="var-system-empty-state">
+      <i class="fa-solid fa-layer-group fa-3x"></i>
+      <p>请选择一个楼层查看快照</p>
+      <p class="var-system-hint">只显示有绑定快照的楼层</p>
+    </div>
+  </div>
+
+  <!-- 操作按钮区 -->
+  <div
+    id="var-system-snapshot-actions"
+    class="var-system-actions"
+    style="display: none"
+  >
+    <button id="var-system-save-snapshot-btn" class="menu_button" disabled>
+      <i class="fa-solid fa-save"></i>
+      <span>保存快照</span>
+    </button>
+    <button id="var-system-save-as-global-btn" class="menu_button">
+      <i class="fa-solid fa-globe"></i>
+      <span>保存为全局快照</span>
+    </button>
+    <button id="var-system-export-snapshot-btn" class="menu_button">
+      <i class="fa-solid fa-file-export"></i>
+      <span>导出 JSON</span>
+    </button>
+    <button id="var-system-import-snapshot-btn" class="menu_button">
+      <i class="fa-solid fa-file-import"></i>
+      <span>导入 JSON</span>
+    </button>
+  </div>
+</div>
+
+<!-- MVU 元数据移除选项弹窗模板 -->
+<template id="var-system-import-snapshot-template">
+  <div class="var-system-import-snapshot-dialog">
+    <h3>导入快照 JSON</h3>
+    <div class="var-system-form-group">
+      <label>
+        <input type="checkbox" id="strip-mvu-metadata-checkbox" checked />
+        <span>移除 MVU 元数据（保留纯净的 stat_data）</span>
+      </label>
+      <small class="var-system-hint"
+        >勾选后会自动删除 $meta、$arrayMeta 字段和 $__META_EXTENSIBLE__$
+        标记</small
+      >
+    </div>
+    <div class="var-system-form-group">
+      <label for="import-json-textarea">粘贴 JSON 内容：</label>
+      <textarea
+        id="import-json-textarea"
+        class="text_pole code-font"
+        rows="15"
+        placeholder='{"角色": {"名字": "张三", "生命值": 100}}'
+      ></textarea>
+    </div>
+  </div>
+</template>

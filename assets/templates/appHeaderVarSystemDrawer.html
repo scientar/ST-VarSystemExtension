@@ -71,6 +71,51 @@
         >
           <span data-i18n="Global Snapshots">全局快照</span>
         </button>
+        <button
+          id="var_system_tab_functions"
+          class="var-system-tab"
+          data-tab="functions"
+          style="
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+          "
+        >
+          <span data-i18n="Function Library">函数库</span>
+        </button>
+        <button
+          id="var_system_tab_messages"
+          class="var-system-tab"
+          data-tab="messages"
+          style="
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+          "
+        >
+          <span data-i18n="Message Snapshots">楼层快照</span>
+        </button>
+        <button
+          id="var_system_tab_settings"
+          class="var-system-tab"
+          data-tab="settings"
+          style="
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+          "
+        >
+          <span data-i18n="Settings">设置</span>
+        </button>
       </div>
 
       <div
@@ -463,6 +508,63 @@
               </button>
             </div>
           </div>
+        </div>
+
+        <!-- 函数库标签页 -->
+        <div
+          id="var_system_functions_section"
+          class="var-system-tab-content"
+          data-tab="functions"
+          style="
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid var(--SmartThemeBorderColor, #333);
+            border-radius: 6px;
+            padding: 10px;
+            flex: 1;
+            min-height: 0;
+          "
+        >
+          <!-- 函数库内容将通过 JavaScript 动态加载 -->
+        </div>
+
+        <!-- 楼层快照标签页 -->
+        <div
+          id="var_system_messages_section"
+          class="var-system-tab-content"
+          data-tab="messages"
+          style="
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid var(--SmartThemeBorderColor, #333);
+            border-radius: 6px;
+            padding: 10px;
+            flex: 1;
+            min-height: 0;
+          "
+        >
+          <!-- 楼层快照内容将通过 JavaScript 动态加载 -->
+        </div>
+
+        <!-- 设置标签页 -->
+        <div
+          id="var_system_settings_section"
+          class="var-system-tab-content"
+          data-tab="settings"
+          style="
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid var(--SmartThemeBorderColor, #333);
+            border-radius: 6px;
+            padding: 10px;
+            flex: 1;
+            min-height: 0;
+          "
+        >
+          <!-- 设置内容将通过 JavaScript 动态加载 -->
         </div>
       </div>
     </div>

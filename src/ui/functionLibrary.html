@@ -1,0 +1,181 @@
+<!-- 函数库管理界面 -->
+<div id="var-system-function-library" class="var-system-tab-content">
+  <!-- 顶部工具栏 -->
+  <div class="var-system-toolbar">
+    <div class="var-system-toolbar-left">
+      <button id="var-system-new-function-btn" class="menu_button">
+        <i class="fa-solid fa-plus"></i>
+        <span>新增函数</span>
+      </button>
+      <button id="var-system-import-functions-btn" class="menu_button">
+        <i class="fa-solid fa-file-import"></i>
+        <span>导入</span>
+      </button>
+      <button id="var-system-export-functions-btn" class="menu_button">
+        <i class="fa-solid fa-file-export"></i>
+        <span>导出</span>
+      </button>
+      <button id="var-system-generate-prompt-btn" class="menu_button">
+        <i class="fa-solid fa-code"></i>
+        <span>生成提示词</span>
+      </button>
+    </div>
+    <div class="var-system-toolbar-right">
+      <label class="var-system-scope-toggle">
+        <input type="radio" name="function-scope" value="global" checked />
+        <span>全局函数</span>
+      </label>
+      <label class="var-system-scope-toggle">
+        <input type="radio" name="function-scope" value="local" />
+        <span>局域函数</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- 函数列表 -->
+  <div id="var-system-function-list" class="var-system-function-list">
+    <!-- 函数卡片将动态插入到这里 -->
+    <div class="var-system-empty-state">
+      <i class="fa-solid fa-inbox fa-3x"></i>
+      <p>暂无函数</p>
+      <p class="var-system-hint">点击"新增函数"创建你的第一个函数</p>
+    </div>
+  </div>
+</div>
+
+<!-- 函数编辑弹窗模板 -->
+<template id="var-system-function-editor-template">
+  <div class="var-system-function-editor">
+    <div class="var-system-form-group">
+      <label for="function-name-input">函数名称</label>
+      <input
+        type="text"
+        id="function-name-input"
+        class="text_pole"
+        placeholder="例如：SET, ADD, 时间推进"
+        required
+      />
+    </div>
+
+    <div class="var-system-form-group">
+      <label for="function-type-select">函数类型</label>
+      <select id="function-type-select" class="text_pole">
+        <option value="active">主动函数（AI 调用）</option>
+        <option value="passive">被动函数（自动执行）</option>
+      </select>
+    </div>
+
+    <div class="var-system-form-group">
+      <label>
+        <input type="checkbox" id="function-enabled-checkbox" checked />
+        <span>启用此函数</span>
+      </label>
+    </div>
+
+    <div class="var-system-form-group">
+      <label for="function-description-textarea"
+        >函数说明（用于生成提示词）</label
+      >
+      <textarea
+        id="function-description-textarea"
+        class="text_pole"
+        rows="3"
+        placeholder="例如：设置指定路径的变量值"
+      ></textarea>
+    </div>
+
+    <!-- 主动函数特有字段 -->
+    <div class="var-system-form-group var-system-active-only">
+      <label for="function-pattern-input">正则表达式（匹配格式）</label>
+      <input
+        type="text"
+        id="function-pattern-input"
+        class="text_pole code-font"
+        placeholder='例如：@\\.SET\\("([^"]+)",\\s*(.+?)\\);?'
+      />
+      <small class="var-system-hint">用于匹配 AI 回复中的函数调用</small>
+    </div>
+
+    <!-- 被动函数特有字段 -->
+    <div
+      class="var-system-form-group var-system-passive-only"
+      style="display: none"
+    >
+      <label for="function-timing-select">执行时机</label>
+      <select id="function-timing-select" class="text_pole">
+        <option value="before_active">主动函数前</option>
+        <option value="after_active">主动函数后</option>
+      </select>
+    </div>
+
+    <div class="var-system-form-group">
+      <label for="function-executor-textarea">函数实现代码（JavaScript）</label>
+      <textarea
+        id="function-executor-textarea"
+        class="text_pole code-font"
+        rows="10"
+        placeholder="// 主动函数示例：&#10;const [path, value] = args;&#10;_.set(snapshot, path, value);&#10;return snapshot;&#10;&#10;// 被动函数示例：&#10;if (_.has(snapshot, '世界.时间')) {&#10;  const currentTime = _.get(snapshot, '世界.时间');&#10;  // 处理逻辑...&#10;}&#10;return snapshot;"
+      ></textarea>
+      <small class="var-system-hint">
+        可用变量：<code>snapshot</code>（快照对象）,
+        <code>args</code>（主动函数参数数组）,
+        <code>context</code>（上下文信息）, <code>_</code>（lodash）
+      </small>
+    </div>
+  </div>
+</template>
+
+<!-- 函数卡片模板 -->
+<template id="var-system-function-card-template">
+  <div class="var-system-function-card" data-function-id="">
+    <div class="var-system-function-card-header">
+      <span class="drag-handle menu-handle" title="拖拽排序">☰</span>
+      <label class="var-system-function-enabled">
+        <input type="checkbox" class="function-enabled-checkbox" />
+        <span class="var-system-function-name">函数名称</span>
+      </label>
+      <div class="var-system-function-badges">
+        <span class="var-system-badge var-system-badge-active">主动</span>
+      </div>
+    </div>
+    <div class="var-system-function-card-body">
+      <p class="var-system-function-description">函数说明文本</p>
+      <div class="var-system-function-meta">
+        <span class="var-system-function-order"></span>
+      </div>
+    </div>
+    <div class="var-system-function-card-footer">
+      <button
+        class="menu_button menu_button_icon function-edit-btn"
+        title="编辑"
+      >
+        <i class="fa-solid fa-edit"></i>
+      </button>
+      <button
+        class="menu_button menu_button_icon function-delete-btn"
+        title="删除"
+      >
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+  </div>
+</template>
+
+<!-- 提示词生成器弹窗模板 -->
+<template id="var-system-prompt-generator-template">
+  <div class="var-system-prompt-generator">
+    <h3>函数调用提示词</h3>
+    <p class="var-system-hint">
+      将以下内容添加到角色卡或提示词中，让 AI 了解可用的函数：
+    </p>
+    <div class="var-system-prompt-output">
+      <pre id="generated-prompt-content" class="code-font"></pre>
+    </div>
+    <div class="var-system-prompt-actions">
+      <button id="copy-prompt-btn" class="menu_button">
+        <i class="fa-solid fa-copy"></i>
+        <span>复制到剪贴板</span>
+      </button>
+    </div>
+  </div>
+</template>
