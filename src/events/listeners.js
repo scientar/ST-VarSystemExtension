@@ -23,8 +23,8 @@ const MODULE_NAME = "[ST-VarSystemExtension/listeners]";
 // 从 SillyTavern 导入事件类型
 // 路径推导：listeners.js → ../events → ../../src → ../../../ST-VarSystemExtension → ../../../../third-party → ../../../../../extensions → ../../../../../../scripts
 // 注意：实际安装后的路径是 public/scripts/extensions/third-party/ST-VarSystemExtension/src/events/listeners.js
-// 所以需要 7 个 ../ 才能到达 public/scripts/
-import { event_types } from "../../../../../../extensions.js";
+// 修正：与 src/ui/*.js 同级，应该是 6 个 ../ 到达 scripts/
+import { event_types } from "../../../../../extensions.js";
 
 // CSRF Token 缓存
 let cachedCsrfToken = null;
