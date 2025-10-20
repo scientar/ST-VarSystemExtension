@@ -218,6 +218,39 @@
                   <i class="fa-solid fa-cloud-arrow-up fa-fw"></i>
                   <span data-i18n="Save as global">保存为全局</span>
                 </button>
+                <button
+                  id="var_system_template_export"
+                  class="menu_button interactable"
+                  type="button"
+                  style="padding: 4px 8px; white-space: nowrap"
+                  title="导出当前编辑器中的 JSON（未保存的也会导出）"
+                  data-i18n="[title]Export current template JSON"
+                >
+                  <i class="fa-solid fa-file-export fa-fw"></i>
+                  <span data-i18n="Export JSON">导出 JSON</span>
+                </button>
+                <button
+                  id="var_system_template_import"
+                  class="menu_button interactable"
+                  type="button"
+                  style="padding: 4px 8px; white-space: nowrap"
+                  title="从文件导入 JSON 到编辑器"
+                  data-i18n="[title]Import JSON from file"
+                >
+                  <i class="fa-solid fa-file-import fa-fw"></i>
+                  <span data-i18n="Import JSON">导入 JSON</span>
+                </button>
+                <button
+                  id="var_system_template_strip_schema"
+                  class="menu_button interactable"
+                  type="button"
+                  style="padding: 4px 8px; white-space: nowrap"
+                  title="移除 MVU Schema（$meta、$arrayMeta 等字段）"
+                  data-i18n="[title]Remove MVU schema fields"
+                >
+                  <i class="fa-solid fa-broom fa-fw"></i>
+                  <span data-i18n="Strip Schema">分离 Schema</span>
+                </button>
               </div>
             </div>
             <div
@@ -479,6 +512,45 @@
                 border-top: 1px solid var(--SmartThemeBorderColor, #333);
               "
             >
+              <button
+                id="var_system_snapshot_editor_export"
+                class="menu_button interactable"
+                type="button"
+                style="
+                  padding: 8px 16px;
+                  white-space: nowrap;
+                  font-size: 13px;
+                "
+              >
+                <i class="fa-solid fa-file-export fa-fw"></i>
+                <span data-i18n="Export JSON">导出 JSON</span>
+              </button>
+              <button
+                id="var_system_snapshot_editor_import"
+                class="menu_button interactable"
+                type="button"
+                style="
+                  padding: 8px 16px;
+                  white-space: nowrap;
+                  font-size: 13px;
+                "
+              >
+                <i class="fa-solid fa-file-import fa-fw"></i>
+                <span data-i18n="Import JSON">导入 JSON</span>
+              </button>
+              <button
+                id="var_system_snapshot_editor_strip_schema"
+                class="menu_button interactable"
+                type="button"
+                style="
+                  padding: 8px 16px;
+                  white-space: nowrap;
+                  font-size: 13px;
+                "
+              >
+                <i class="fa-solid fa-broom fa-fw"></i>
+                <span data-i18n="Strip Schema">分离 Schema</span>
+              </button>
               <button
                 id="var_system_snapshot_editor_cancel"
                 class="menu_button interactable"

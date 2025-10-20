@@ -95,31 +95,9 @@
       <i class="fa-solid fa-file-import"></i>
       <span>导入 JSON</span>
     </button>
+    <button id="var-system-strip-schema-btn" class="menu_button">
+      <i class="fa-solid fa-broom"></i>
+      <span>分离 Schema</span>
+    </button>
   </div>
 </div>
-
-<!-- MVU 元数据移除选项弹窗模板 -->
-<template id="var-system-import-snapshot-template">
-  <div class="var-system-import-snapshot-dialog">
-    <h3>导入快照 JSON</h3>
-    <div class="var-system-form-group">
-      <label>
-        <input type="checkbox" id="strip-mvu-metadata-checkbox" checked />
-        <span>移除 MVU 元数据（保留纯净的 stat_data）</span>
-      </label>
-      <small class="var-system-hint"
-        >勾选后会自动删除 $meta、$arrayMeta 字段和 $__META_EXTENSIBLE__$
-        标记</small
-      >
-    </div>
-    <div class="var-system-form-group">
-      <label for="import-json-textarea">粘贴 JSON 内容：</label>
-      <textarea
-        id="import-json-textarea"
-        class="text_pole code-font"
-        rows="15"
-        placeholder='{"角色": {"名字": "张三", "生命值": 100}}'
-      ></textarea>
-    </div>
-  </div>
-</template>

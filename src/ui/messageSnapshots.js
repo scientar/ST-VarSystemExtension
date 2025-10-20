@@ -100,6 +100,11 @@ function bindEventHandlers() {
   $("#var-system-import-snapshot-btn").on("click", async () => {
     await importSnapshot();
   });
+
+  // 分离 Schema
+  $("#var-system-strip-schema-btn").on("click", async () => {
+    await stripSchemaFromMessageSnapshot();
+  });
 }
 
 /**
@@ -420,45 +425,67 @@ async function exportSnapshot() {
  * 导入快照
  */
 async function importSnapshot() {
-  const template = $("#var-system-import-snapshot-template").html();
-  const $dialog = $(template);
+  // 创建文件输入元素
+  const $input = $("<input>");
+  $input.attr("type", "file");
+  $input.attr("accept", ".json");
 
-  const result = await callGenericPopup(
-    $dialog,
-    POPUP_TYPE.CONFIRM,
-    "导入快照 JSON",
-    {
-      okButton: "导入",
-      cancelButton: "取消",
-    },
-  );
+  return new Promise((resolve) => {
+    $input.on("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        resolve();
+        return;
+      }
 
-  if (result !== POPUP_RESULT.AFFIRMATIVE) {
+      try {
+        const text = await file.text();
+        const snapshot = JSON.parse(text);
+
+        // 更新编辑器
+        editorController.set(snapshot);
+        snapshotState.draftBody = snapshot;
+        snapshotState.dirty = true;
+        $("#var-system-save-snapshot-btn").prop("disabled", false);
+
+        toastr.success("快照已导入（未保存）");
+        resolve();
+      } catch (error) {
+        console.error(MODULE_NAME, "导入快照失败:", error);
+        toastr.error(`导入失败：${error.message}`);
+        resolve();
+      }
+    });
+
+    $input.click();
+  });
+}
+
+/**
+ * 从当前编辑器内容中分离 MVU Schema
+ */
+async function stripSchemaFromMessageSnapshot() {
+  if (!editorController) {
+    toastr.error("编辑器尚未初始化");
     return;
   }
 
   try {
-    const jsonText = $dialog.find("#import-json-textarea").val().trim();
-    let snapshot = JSON.parse(jsonText);
+    const snapshot = editorController.get();
 
-    // 是否移除 MVU 元数据
-    const stripMvu = $dialog
-      .find("#strip-mvu-metadata-checkbox")
-      .prop("checked");
-    if (stripMvu) {
-      snapshot = stripMvuMetadata(snapshot);
-    }
+    // 应用 schema 剥离
+    const stripped = stripMvuMetadata(snapshot);
 
     // 更新编辑器
-    editorController.set(snapshot);
-    snapshotState.draftBody = snapshot;
+    editorController.set(stripped);
+    snapshotState.draftBody = stripped;
     snapshotState.dirty = true;
     $("#var-system-save-snapshot-btn").prop("disabled", false);
 
-    toastr.success("快照已导入（未保存）");
+    toastr.success("已移除 MVU Schema 字段");
   } catch (error) {
-    console.error(MODULE_NAME, "导入快照失败:", error);
-    toastr.error(`导入失败：${error.message}`);
+    console.error(MODULE_NAME, "分离 Schema 失败:", error);
+    toastr.error(`分离 Schema 失败：${error.message}`);
   }
 }
 
@@ -475,7 +502,8 @@ function stripMvuMetadata(obj) {
   } else if (_.isObject(obj) && !_.isDate(obj)) {
     const result = {};
     for (const key in obj) {
-      if (key !== "$meta" && key !== "$arrayMeta") {
+      // 移除所有以 $ 开头的字段
+      if (!key.startsWith('$')) {
         result[key] = stripMvuMetadata(obj[key]);
       }
     }
@@ -483,10 +511,3 @@ function stripMvuMetadata(obj) {
   }
   return obj;
 }
-
-// 导出用于弹窗的常量
-const POPUP_RESULT = {
-  AFFIRMATIVE: 1,
-  NEGATIVE: 0,
-  CANCELLED: -1,
-};

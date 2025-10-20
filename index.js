@@ -95,6 +95,23 @@ function bindTemplateSection(rootElement) {
     void setEnabledForActiveCharacter(isChecked);
   });
 
+  // 导入/导出/分离 Schema 按钮
+  const exportBtn = rootElement.querySelector('#var_system_template_export');
+  const importBtn = rootElement.querySelector('#var_system_template_import');
+  const stripSchemaBtn = rootElement.querySelector('#var_system_template_strip_schema');
+
+  exportBtn?.addEventListener('click', () => {
+    void exportTemplate();
+  });
+
+  importBtn?.addEventListener('click', () => {
+    void importTemplate();
+  });
+
+  stripSchemaBtn?.addEventListener('click', () => {
+    void stripSchemaFromTemplate();
+  });
+
   updateTemplateStatus("尚未加载模板", "info");
   updateTemplateControls();
 }
@@ -594,6 +611,95 @@ async function saveTemplateAsGlobalSnapshot() {
   }
 }
 
+/**
+ * 导出角色模板为 JSON 文件
+ */
+async function exportTemplate() {
+  const controller = await ensureEditorInstance();
+  if (!controller) {
+    toastr.error('编辑器尚未准备就绪');
+    return;
+  }
+
+  const content = controller.get();
+  const json = content?.json;
+
+  if (json === undefined) {
+    toastr.error('请修复模板中的错误后再导出');
+    return;
+  }
+
+  const context = window.SillyTavern.getContext();
+  const character = context.characters?.[context.characterId];
+  const characterName = character?.name || 'unknown';
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `template_${characterName}_${timestamp}.json`;
+
+  exportJSONToFile(json, filename);
+  toastr.success(`已导出：${filename}`);
+}
+
+/**
+ * 从 JSON 文件导入角色模板
+ */
+async function importTemplate() {
+  const data = await importJSONFromFile();
+  if (!data) {
+    return; // 用户取消或导入失败
+  }
+
+  const controller = await ensureEditorInstance();
+  if (!controller) {
+    toastr.error('编辑器尚未准备就绪');
+    return;
+  }
+
+  // 标准化导入的数据（处理旧格式，但不剥离 schema）
+  const normalized = normalizeSnapshotBody(data, false);
+
+  // 更新编辑器
+  controller.set({ json: normalized });
+
+  // 标记为已修改
+  templateState.dirty = true;
+  templateState.draftBody = cloneJSON(normalized);
+  updateTemplateControls();
+
+  toastr.success('JSON 已导入到编辑器');
+}
+
+/**
+ * 从当前编辑器内容中分离 MVU Schema
+ */
+async function stripSchemaFromTemplate() {
+  const controller = await ensureEditorInstance();
+  if (!controller) {
+    toastr.error('编辑器尚未准备就绪');
+    return;
+  }
+
+  const content = controller.get();
+  const json = content?.json;
+
+  if (json === undefined) {
+    toastr.error('请修复模板中的错误后再分离 Schema');
+    return;
+  }
+
+  // 应用 schema 剥离
+  const stripped = stripMvuSchema(json);
+
+  // 更新编辑器
+  controller.set({ json: stripped });
+
+  // 标记为已修改
+  templateState.dirty = true;
+  templateState.draftBody = cloneJSON(stripped);
+  updateTemplateControls();
+
+  toastr.success('已移除 MVU Schema 字段');
+}
+
 function onContextChanged() {
   scheduleTemplateRefresh(true);
 }
@@ -768,11 +874,83 @@ async function getCsrfToken() {
 }
 
 /**
+ * 递归移除 MVU Schema 字段
+ * - 移除对象中所有以 $ 开头的字段（如 $meta, $arrayMeta）
+ * - 过滤数组中的 $__META_EXTENSIBLE__$ 标记
+ * @param {any} obj - 待处理的对象
+ * @returns {any} 清理后的对象
+ */
+function stripMvuSchema(obj) {
+  if (Array.isArray(obj)) {
+    return obj
+      .filter((item) => item !== "$__META_EXTENSIBLE__$")
+      .map((item) => stripMvuSchema(item));
+  } else if (typeof obj === 'object' && obj !== null && !(obj instanceof Date)) {
+    const result = {};
+    for (const key in obj) {
+      // 跳过所有以 $ 开头的字段
+      if (!key.startsWith('$')) {
+        result[key] = stripMvuSchema(obj[key]);
+      }
+    }
+    return result;
+  }
+  return obj;
+}
+
+/**
+ * 导出 JSON 到文件
+ * @param {any} data - 要导出的数据
+ * @param {string} filename - 文件名
+ */
+function exportJSONToFile(data, filename) {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 从文件导入 JSON
+ * @returns {Promise<any|null>} 解析后的 JSON 对象，取消则返回 null
+ */
+async function importJSONFromFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        resolve(data);
+      } catch (error) {
+        toastr.error(`导入失败：${error.message}`);
+        resolve(null);
+      }
+    };
+    input.click();
+  });
+}
+
+/**
  * 规范化快照数据（兼容旧格式）
  * 旧格式：{ metadata: {...}, variables: {...} }
  * 新格式：{ ... }（直接是变量对象）
+ * @param {Object} snapshotBody - 原始快照数据
+ * @param {boolean} stripSchema - 是否剥离 schema（MVU 兼容模式）
+ * @returns {Object} 规范化后的快照数据
  */
-function normalizeSnapshotBody(snapshotBody) {
+function normalizeSnapshotBody(snapshotBody, stripSchema = false) {
   if (!snapshotBody || typeof snapshotBody !== "object") {
     return {};
   }
@@ -785,7 +963,19 @@ function normalizeSnapshotBody(snapshotBody) {
     console.log(
       `${EXTENSION_LOG_PREFIX} 检测到旧格式快照，自动提取 variables 字段`,
     );
-    return snapshotBody.variables || {};
+    const result = snapshotBody.variables || {};
+
+    // MVU 兼容：剥离 schema
+    if (stripSchema && typeof result === 'object') {
+      return stripMvuSchema(result);
+    }
+
+    return result;
+  }
+
+  // MVU 兼容：剥离 schema（对于新格式也可能包含 schema）
+  if (stripSchema && typeof snapshotBody === 'object') {
+    return stripMvuSchema(snapshotBody);
   }
 
   // 新格式或其他情况，直接返回
@@ -894,9 +1084,6 @@ async function ensureSnapshotEditorInstance() {
 
     // 关键：必须调用 ensureReady() 来实际初始化编辑器 UI
     await snapshotsState.editorController.ensureReady();
-
-    // 同步模式切换按钮状态
-    syncEditorModeButtons("snapshot");
 
     console.log(`${EXTENSION_LOG_PREFIX} 快照编辑器已初始化`);
   } catch (error) {
@@ -1426,6 +1613,95 @@ async function cancelSnapshotEditor() {
 }
 
 /**
+ * 导出全局快照为 JSON 文件
+ */
+async function exportGlobalSnapshot() {
+  if (!snapshotsState.editorController) {
+    toastr.error('编辑器尚未准备就绪');
+    return;
+  }
+
+  try {
+    const content = snapshotsState.editorController.get();
+    const json = content?.json;
+
+    if (json === undefined) {
+      toastr.error('请修复 JSON 错误后再导出');
+      return;
+    }
+
+    const name = document.getElementById("var_system_snapshot_name")?.value.trim() || 'snapshot';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `global_snapshot_${name}_${timestamp}.json`;
+
+    exportJSONToFile(json, filename);
+    toastr.success(`已导出：${filename}`);
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 导出快照失败:`, error);
+    toastr.error(`导出失败：${error.message}`);
+  }
+}
+
+/**
+ * 从 JSON 文件导入全局快照
+ */
+async function importGlobalSnapshot() {
+  const data = await importJSONFromFile();
+  if (!data) {
+    return; // 用户取消或导入失败
+  }
+
+  if (!snapshotsState.editorController) {
+    toastr.error('编辑器尚未准备就绪');
+    return;
+  }
+
+  try {
+    // 标准化导入的数据（处理旧格式，但不剥离 schema）
+    const normalized = normalizeSnapshotBody(data, false);
+
+    // 更新编辑器
+    snapshotsState.editorController.set({ json: normalized });
+
+    toastr.success('JSON 已导入到编辑器');
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 导入快照失败:`, error);
+    toastr.error(`导入失败：${error.message}`);
+  }
+}
+
+/**
+ * 从当前编辑器内容中分离 MVU Schema
+ */
+async function stripSchemaFromGlobalSnapshot() {
+  if (!snapshotsState.editorController) {
+    toastr.error('编辑器尚未准备就绪');
+    return;
+  }
+
+  try {
+    const content = snapshotsState.editorController.get();
+    const json = content?.json;
+
+    if (json === undefined) {
+      toastr.error('请修复 JSON 错误后再分离 Schema');
+      return;
+    }
+
+    // 应用 schema 剥离
+    const stripped = stripMvuSchema(json);
+
+    // 更新编辑器
+    snapshotsState.editorController.set({ json: stripped });
+
+    toastr.success('已移除 MVU Schema 字段');
+  } catch (error) {
+    console.error(`${EXTENSION_LOG_PREFIX} 分离 Schema 失败:`, error);
+    toastr.error(`分离 Schema 失败：${error.message}`);
+  }
+}
+
+/**
  * 删除快照
  */
 async function deleteSnapshot(snapshotId) {
@@ -1530,6 +1806,9 @@ function bindSnapshotsSection(rootElement) {
     back: rootElement.querySelector("#var_system_snapshot_editor_back"),
     save: rootElement.querySelector("#var_system_snapshot_editor_save"),
     cancel: rootElement.querySelector("#var_system_snapshot_editor_cancel"),
+    export: rootElement.querySelector("#var_system_snapshot_editor_export"),
+    import: rootElement.querySelector("#var_system_snapshot_editor_import"),
+    stripSchema: rootElement.querySelector("#var_system_snapshot_editor_strip_schema"),
   };
 
   // 搜索
@@ -1569,6 +1848,21 @@ function bindSnapshotsSection(rootElement) {
   // 编辑器：取消
   snapshotEditorButtons.cancel?.addEventListener("click", () => {
     void cancelSnapshotEditor();
+  });
+
+  // 编辑器：导出 JSON
+  snapshotEditorButtons.export?.addEventListener("click", () => {
+    void exportGlobalSnapshot();
+  });
+
+  // 编辑器：导入 JSON
+  snapshotEditorButtons.import?.addEventListener("click", () => {
+    void importGlobalSnapshot();
+  });
+
+  // 编辑器：分离 Schema
+  snapshotEditorButtons.stripSchema?.addEventListener("click", () => {
+    void stripSchemaFromGlobalSnapshot();
   });
 }
 

@@ -20,11 +20,9 @@ import { processMessage, reprocessFromMessage } from "./processor.js";
 
 const MODULE_NAME = "[ST-VarSystemExtension/listeners]";
 
-// 从 SillyTavern 导入事件类型
-// 路径推导：listeners.js → ../events → ../../src → ../../../ST-VarSystemExtension → ../../../../third-party → ../../../../../extensions → ../../../../../../scripts
-// 注意：实际安装后的路径是 public/scripts/extensions/third-party/ST-VarSystemExtension/src/events/listeners.js
-// 修正：与 src/ui/*.js 同级，应该是 6 个 ../ 到达 scripts/
-import { event_types } from "../../../../../extensions.js";
+// 从 SillyTavern 导入事件类型和相关 API
+// 使用绝对路径（从网站根目录开始）避免沙箱环境下的路径问题
+import { saveChat, eventSource, event_types } from '/script.js';
 
 // CSRF Token 缓存
 let cachedCsrfToken = null;
@@ -66,7 +64,7 @@ async function getCsrfToken() {
 function isVariableSystemEnabled() {
   try {
     const context = window.SillyTavern.getContext();
-    const character = context.characters[context.characterId];
+    const character = context.characters?.[context.characterId];
 
     return character?.data?.extensions?.st_var_system?.enabled === true;
   } catch (error) {
@@ -283,12 +281,12 @@ async function handleChatDeleted(chatFileName) {
 export function registerEventListeners() {
   console.log(MODULE_NAME, "注册事件监听器");
 
-  // 使用 eventOn 注册监听器（扩展关闭时自动卸载）
-  eventOn(event_types.MESSAGE_RECEIVED, handleMessageReceived);
-  eventOn(event_types.MESSAGE_SWIPED, handleMessageSwiped);
-  eventOn(event_types.CHAT_CHANGED, handleChatChanged);
-  eventOn(event_types.MESSAGE_DELETED, handleMessageDeleted);
-  eventOn(event_types.CHAT_DELETED, handleChatDeleted);
+  // 使用 eventSource.on 注册监听器（酒馆原生扩展 API）
+  eventSource.on(event_types.MESSAGE_RECEIVED, handleMessageReceived);
+  eventSource.on(event_types.MESSAGE_SWIPED, handleMessageSwiped);
+  eventSource.on(event_types.CHAT_CHANGED, handleChatChanged);
+  eventSource.on(event_types.MESSAGE_DELETED, handleMessageDeleted);
+  eventSource.on(event_types.CHAT_DELETED, handleChatDeleted);
 
   console.log(MODULE_NAME, "事件监听器已注册");
 }
@@ -302,11 +300,11 @@ export function registerEventListeners() {
 export function unregisterEventListeners() {
   console.log(MODULE_NAME, "卸载事件监听器");
 
-  eventRemoveListener(event_types.MESSAGE_RECEIVED, handleMessageReceived);
-  eventRemoveListener(event_types.MESSAGE_SWIPED, handleMessageSwiped);
-  eventRemoveListener(event_types.CHAT_CHANGED, handleChatChanged);
-  eventRemoveListener(event_types.MESSAGE_DELETED, handleMessageDeleted);
-  eventRemoveListener(event_types.CHAT_DELETED, handleChatDeleted);
+  eventSource.removeListener(event_types.MESSAGE_RECEIVED, handleMessageReceived);
+  eventSource.removeListener(event_types.MESSAGE_SWIPED, handleMessageSwiped);
+  eventSource.removeListener(event_types.CHAT_CHANGED, handleChatChanged);
+  eventSource.removeListener(event_types.MESSAGE_DELETED, handleMessageDeleted);
+  eventSource.removeListener(event_types.CHAT_DELETED, handleChatDeleted);
 
   console.log(MODULE_NAME, "事件监听器已卸载");
 }

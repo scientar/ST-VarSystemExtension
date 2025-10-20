@@ -4,7 +4,8 @@
  * 功能：清除最后一层 AI 消息的快照标识符，重新运行处理流程
  */
 
-import { getContext } from "../../../../../extensions.js";
+import { getContext } from '/scripts/extensions.js';
+import { saveChat } from '/script.js';
 import { reprocessFromMessage } from "../events/processor.js";
 
 const MODULE_NAME = "[ST-VarSystemExtension/reprocessButton]";
@@ -104,7 +105,7 @@ async function handleReprocessClick() {
       delete message.swipes_info[currentSwipeId].st_var_system_snapshot_id;
 
       // 保存聊天记录
-      await context.saveChat();
+      await saveChat();
     } else {
       console.log(
         MODULE_NAME,
