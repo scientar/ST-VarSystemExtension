@@ -1,9 +1,8 @@
 import {
-  event_types,
-  eventSource,
   renderExtensionTemplateAsync,
   writeExtensionField,
 } from "/scripts/extensions.js";
+import { event_types, eventSource } from "/script.js";
 import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
 import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
 import {

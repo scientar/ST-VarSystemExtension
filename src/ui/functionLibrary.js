@@ -13,9 +13,9 @@
 import {
   extension_settings,
   getContext,
-  saveSettingsDebounced,
   writeExtensionField,
 } from "/scripts/extensions.js";
+import { saveSettingsDebounced } from "/script.js";
 import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
 import { functionRegistry } from "../functions/registry.js";
 
