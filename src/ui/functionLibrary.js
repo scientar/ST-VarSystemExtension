@@ -15,8 +15,8 @@ import {
   getContext,
   saveSettingsDebounced,
   writeExtensionField,
-} from "../../../../../extensions.js";
-import { callGenericPopup, POPUP_TYPE } from "../../../../../popup.js";
+} from "/scripts/extensions.js";
+import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
 import { functionRegistry } from "../functions/registry.js";
 
 const MODULE_NAME = "[ST-VarSystemExtension/FunctionLibrary]";

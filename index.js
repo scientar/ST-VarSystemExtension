@@ -3,8 +3,8 @@ import {
   eventSource,
   renderExtensionTemplateAsync,
   writeExtensionField,
-} from "../../../../extensions.js";
-import { callGenericPopup, POPUP_TYPE } from "../../../../popup.js";
+} from "/scripts/extensions.js";
+import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
 import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
 import {
   registerEventListeners,
