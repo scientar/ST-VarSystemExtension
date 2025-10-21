@@ -1977,54 +1977,66 @@ async function bindSettingsSection(rootElement) {
 }
 
 async function injectAppHeaderEntry() {
-  if (document.querySelector("#var_system_drawer")) {
-    return;
-  }
+  let $drawer = $("#var_system_drawer");
+  let needsInjection = false;
 
-  let templateHtml = null;
-  try {
-    templateHtml = await renderExtensionTemplateAsync(
-      "third-party/ST-VarSystemExtension/assets/templates",
-      "appHeaderVarSystemDrawer",
-    );
-  } catch (error) {
-    console.warn(
-      `${EXTENSION_LOG_PREFIX} 模板 appHeaderVarSystemDrawer 加载失败`,
-      error,
-    );
-    return;
-  }
+  if ($drawer.length === 0) {
+    // HTML不存在，需要加载并注入
+    needsInjection = true;
 
-  if (!templateHtml) {
-    console.warn(
-      `${EXTENSION_LOG_PREFIX} 模板 appHeaderVarSystemDrawer 返回空内容`,
-    );
-    return;
-  }
-
-  const $drawer = $(templateHtml);
-  const $anchor = $("#extensions-settings-button");
-  if ($anchor.length === 0) {
-    console.warn(`${EXTENSION_LOG_PREFIX} 找不到扩展设置按钮，无法插入入口`);
-    return;
-  }
-
-  $anchor.after($drawer);
-
-  const $icon = $drawer.find("#var_system_drawer_icon");
-  const $content = $drawer.find("#var_system_drawer_content");
-
-  $content.hide();
-
-  $drawer.find(".drawer-toggle").on("click", () => {
-    if ($icon.hasClass("openIcon")) {
-      closeDrawer($icon, $content);
-    } else {
-      openDrawer($icon, $content);
+    let templateHtml = null;
+    try {
+      templateHtml = await renderExtensionTemplateAsync(
+        "third-party/ST-VarSystemExtension/assets/templates",
+        "appHeaderVarSystemDrawer",
+      );
+    } catch (error) {
+      console.warn(
+        `${EXTENSION_LOG_PREFIX} 模板 appHeaderVarSystemDrawer 加载失败`,
+        error,
+      );
+      return;
     }
-  });
 
+    if (!templateHtml) {
+      console.warn(
+        `${EXTENSION_LOG_PREFIX} 模板 appHeaderVarSystemDrawer 返回空内容`,
+      );
+      return;
+    }
+
+    $drawer = $(templateHtml);
+    const $anchor = $("#extensions-settings-button");
+    if ($anchor.length === 0) {
+      console.warn(
+        `${EXTENSION_LOG_PREFIX} 找不到扩展设置按钮，无法插入入口`,
+      );
+      return;
+    }
+
+    $anchor.after($drawer);
+
+    const $icon = $drawer.find("#var_system_drawer_icon");
+    const $content = $drawer.find("#var_system_drawer_content");
+
+    $content.hide();
+
+    $drawer.find(".drawer-toggle").on("click", () => {
+      if ($icon.hasClass("openIcon")) {
+        closeDrawer($icon, $content);
+      } else {
+        openDrawer($icon, $content);
+      }
+    });
+  }
+
+  // 无论HTML是否已存在，都执行初始化
   const rootElement = $drawer.get(0);
+  if (!rootElement) {
+    console.error(`${EXTENSION_LOG_PREFIX} 无法获取drawer元素`);
+    return;
+  }
+
   bindTemplateSection(rootElement);
   bindTabSwitching(rootElement);
   bindSnapshotsSection(rootElement);
@@ -2034,7 +2046,9 @@ async function injectAppHeaderEntry() {
 
   scheduleTemplateRefresh(true);
 
-  console.log(`${EXTENSION_LOG_PREFIX} 自定义入口已注入`);
+  console.log(
+    `${EXTENSION_LOG_PREFIX} 自定义入口已${needsInjection ? "注入" : "重新初始化"}`,
+  );
 }
 
 async function initExtension() {
