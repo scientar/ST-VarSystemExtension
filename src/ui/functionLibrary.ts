@@ -373,7 +373,8 @@ async function openFunctionEditor(func = null) {
     func?.builtin ? "查看内置函数" : (func ? "编辑函数" : "新增函数"),
     {
       okButton: func?.builtin ? "关闭" : "保存",
-      cancelButton: func?.builtin ? null : "取消",
+      // 【修复】内置函数不显示取消按钮（使用条件展开避免显示默认的"否"按钮）
+      ...(!func?.builtin && { cancelButton: "取消" }),
     },
   );
 
@@ -419,22 +420,27 @@ async function openFunctionEditor(func = null) {
   }
 
   // 保存函数
-  if (func) {
-    // 更新现有函数 - 直接修改对象，然后保存
-    Object.assign(func, functionData);
-  } else {
-    // 添加新函数
-    if (currentScope === "global") {
-      functionRegistry.upsertGlobalFunction(functionData);
+  try {
+    if (func) {
+      // 更新现有函数 - 直接修改对象，然后保存
+      Object.assign(func, functionData);
     } else {
-      functionRegistry.upsertLocalFunction(functionData);
+      // 添加新函数
+      if (currentScope === "global") {
+        functionRegistry.upsertGlobalFunction(functionData);
+      } else {
+        functionRegistry.upsertLocalFunction(functionData);
+      }
     }
+
+    await saveFunctions();
+    await loadFunctionList();
+
+    toastr.success(`函数"${functionData.name}"已${func ? "更新" : "创建"}`);
+  } catch (error) {
+    console.error("[FunctionLibrary] 保存函数失败:", error);
+    toastr.error(`保存函数失败: ${error.message || "未知错误"}`);
   }
-
-  await saveFunctions();
-  await loadFunctionList();
-
-  toastr.success(`函数"${functionData.name}"已${func ? "更新" : "创建"}`);
 }
 
 /**

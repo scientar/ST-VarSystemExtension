@@ -40,7 +40,7 @@ export async function addStatusPlaceholder(
 ): Promise<boolean> {
   try {
     // 获取目标消息
-    const messages = getChatMessages(messageId);
+    const messages = window.TavernHelper.getChatMessages(messageId);
     if (!messages || messages.length === 0) {
       console.warn(MODULE_NAME, `消息 #${messageId} 不存在`);
       return false;
@@ -67,7 +67,7 @@ export async function addStatusPlaceholder(
     const updatedMessage = message.message + `\n\n${STATUS_PLACEHOLDER}`;
 
     // 更新消息内容
-    await setChatMessages(
+    await window.TavernHelper.setChatMessages(
       [
         {
           message_id: messageId,

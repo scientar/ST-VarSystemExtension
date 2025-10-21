@@ -275,6 +275,14 @@ export class FunctionRegistry {
     if (!this.validateFunction(func)) {
       throw new Error("函数定义无效");
     }
+
+    // 【修复】保留内置函数的 enabled 状态
+    // 当重新注册内置函数时（如页面刷新），不应覆盖用户设置的启用状态
+    const existing = this.globalFunctions.get(func.id);
+    if (existing && func.builtin && existing.builtin) {
+      func = { ...func, enabled: existing.enabled };
+    }
+
     this.globalFunctions.set(func.id, func);
   }
 
@@ -286,6 +294,14 @@ export class FunctionRegistry {
     if (!this.validateFunction(func)) {
       throw new Error("函数定义无效");
     }
+
+    // 【修复】保留内置函数的 enabled 状态
+    // 当重新注册内置函数时（如页面刷新），不应覆盖用户设置的启用状态
+    const existing = this.localFunctions.get(func.id);
+    if (existing && func.builtin && existing.builtin) {
+      func = { ...func, enabled: existing.enabled };
+    }
+
     this.localFunctions.set(func.id, func);
   }
 

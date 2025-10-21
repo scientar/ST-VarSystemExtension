@@ -3,9 +3,6 @@
  * Phase 4: 函数库管理 + 楼层快照界面
  */
 
-/* 导入设计系统 */
-@import './design-system.scss';
-
 /* ==================== 通用样式 ==================== */
 
 .var-system-tab-content {
@@ -61,8 +58,8 @@
 }
 
 /* 修复按钮文字换行问题 */
-.var-system-toolbar button,
-.var-system-toolbar .menu_button {
+#var-system-drawer .var-system-toolbar button,
+#var-system-drawer .var-system-toolbar .menu_button {
   white-space: nowrap;
 }
 
@@ -174,10 +171,18 @@
 
 /* ==================== 按钮统一样式 ==================== */
 
+/* 变量系统扩展内所有按钮的基础样式 */
+#var-system-drawer .menu_button {
+  display: inline-flex !important;
+  align-items: center;
+  white-space: nowrap;
+  flex-direction: row !important; /* 强制横向排列，防止文字竖向显示 */
+}
+
 /* 工具栏和操作区按钮 */
-.var-system-toolbar .menu_button,
-.var-system-actions .menu_button,
-.var-system-empty-state .menu_button {
+#var-system-drawer .var-system-toolbar .menu_button,
+#var-system-drawer .var-system-actions .menu_button,
+#var-system-drawer .var-system-empty-state .menu_button {
   padding: 6px 12px;
   min-width: 80px;
   font-size: 14px;
@@ -191,7 +196,7 @@
 }
 
 /* 图标按钮（无文字） */
-.menu_button_icon {
+#var-system-drawer .menu_button_icon {
   min-width: auto;
   padding: 6px;
   aspect-ratio: 1;
@@ -199,10 +204,10 @@
 
 /* 响应式：小屏幕下适配 */
 @media (max-width: 640px) {
-  .var-system-toolbar .menu_button span:not(.var-system-scope-toggle span) {
+  #var-system-drawer .var-system-toolbar .menu_button span:not(.var-system-scope-toggle span) {
     display: none;
   }
-  .var-system-toolbar .menu_button:not(.var-system-scope-toggle) {
+  #var-system-drawer .var-system-toolbar .menu_button:not(.var-system-scope-toggle) {
     min-width: auto;
     padding: 6px;
   }
@@ -338,12 +343,12 @@
   background: var(--SmartThemeBlurTintColor);
   border: 1px solid var(--SmartThemeBorderColor);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-md);
+  padding: 16px 20px; /* 增加内边距，使内容更舒适 */
   transition: all var(--duration-base) var(--ease-out);
   cursor: default;
   position: relative;
   overflow: visible; /* 改为 visible，避免截断 tooltip */
-  margin-bottom: 4px; /* 防止 hover 时抖动 */
+  margin-bottom: 12px; /* 增加卡片间距，视觉更清晰 */
 }
 
 .var-system-function-card::before {
@@ -359,13 +364,14 @@
 }
 
 .var-system-function-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-  border-color: var(--var-gray-300);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); /* 更深的阴影 */
+  transform: translateY(-3px); /* 更大的上移距离 */
+  border-color: rgba(255, 255, 255, 0.3); /* 更明显的边框高亮 */
 }
 
 .var-system-function-card:hover::before {
   opacity: 1;
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5); /* 顶部条添加发光效果 */
 }
 
 /* 内置函数卡片特殊样式 */
@@ -402,36 +408,40 @@
 
 .var-system-function-card-header {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem; /* 增加间距 */
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem; /* 增加底部间距 */
 }
 
 /* 拖拽手柄 */
 .var-system-function-card .drag-handle {
   cursor: grab;
   color: var(--SmartThemeBorderColor);
-  font-size: 1.2rem;
-  padding: 0.25rem;
-  transition: color 0.2s;
+  font-size: 1.3rem; /* 略微增大 */
+  padding: 0.25rem 0.5rem; /* 增加横向padding，更易点击 */
+  transition: all 0.2s;
+  border-radius: 4px;
 }
 
 .var-system-function-card .drag-handle:hover {
   color: var(--SmartThemeEmColor);
+  background: rgba(255, 255, 255, 0.05); /* 添加背景高亮 */
 }
 
 .var-system-function-card .drag-handle:active {
   cursor: grabbing;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .var-system-function-enabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: bold;
-  font-size: 1.1rem;
+  font-weight: 600; /* 从bold改为600，更柔和 */
+  font-size: 1.15rem; /* 略微增大 */
   flex: 1;
+  color: var(--SmartThemeEmColor); /* 使用强调色 */
 }
 
 .var-system-function-badges {
@@ -440,34 +450,38 @@
 }
 
 .var-system-badge {
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: 5px 12px; /* 增加padding，更易识别 */
   border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+  font-size: 0.8rem; /* 略微增大，更易读 */
+  font-weight: 600; /* 从bold改为600 */
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: var(--shadow-sm);
+  letter-spacing: 0.8px; /* 增加字间距 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); /* 更明显的阴影 */
   transition: all var(--duration-fast) var(--ease-out);
 }
 
 .var-system-badge-active {
-  background: var(--gradient-primary);
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); /* 蓝色渐变，更鲜明 */
   color: white;
+  border: 1px solid rgba(52, 152, 219, 0.5);
 }
 
 .var-system-badge-active:hover {
-  filter: brightness(1.1);
-  box-shadow: var(--shadow-md);
+  filter: brightness(1.15);
+  box-shadow: 0 4px 10px rgba(52, 152, 219, 0.4);
+  transform: translateY(-1px);
 }
 
 .var-system-badge-passive {
-  background: var(--gradient-info);
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); /* 紫色渐变，与主动形成对比 */
   color: white;
+  border: 1px solid rgba(155, 89, 182, 0.5);
 }
 
 .var-system-badge-passive:hover {
-  filter: brightness(1.1);
-  box-shadow: var(--shadow-md);
+  filter: brightness(1.15);
+  box-shadow: 0 4px 10px rgba(155, 89, 182, 0.4);
+  transform: translateY(-1px);
 }
 
 .var-system-function-card-body {
@@ -476,9 +490,10 @@
 }
 
 .var-system-function-description {
-  color: var(--SmartThemeEmColor);
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  color: var(--SmartThemeBodyColor); /* 使用正文颜色，对比度更好 */
+  margin-bottom: 0.75rem; /* 增加底部间距 */
+  font-size: 0.95rem; /* 略微增大 */
+  line-height: 1.6; /* 增加行高，更易读 */
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -487,16 +502,28 @@
 }
 
 .var-system-function-meta {
-  font-size: 0.8rem;
+  font-size: 0.85rem; /* 略微增大 */
   color: var(--grey70);
+  line-height: 1.5;
 }
 
 .var-system-function-card-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--SmartThemeBorderColor);
+  gap: 0.75rem; /* 增加按钮间距 */
+  padding-top: 0.75rem; /* 增加顶部间距 */
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1); /* 使用半透明边框，更柔和 */
+}
+
+/* 卡片底部按钮样式 */
+.var-system-function-card-footer button {
+  transition: all 0.2s ease;
+}
+
+.var-system-function-card-footer button:hover {
+  transform: scale(1.05);
+  filter: brightness(1.2);
 }
 
 /* ==================== 函数编辑器 ==================== */
@@ -806,11 +833,11 @@
     align-items: stretch;
   }
 
-  .var-system-setting-action {
+  #var-system-drawer .var-system-setting-action {
     width: 100%;
   }
 
-  .var-system-setting-action button {
+  #var-system-drawer .var-system-setting-action button {
     width: 100%;
   }
 

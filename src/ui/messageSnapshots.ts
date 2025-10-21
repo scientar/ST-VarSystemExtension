@@ -265,7 +265,7 @@ async function fetchSnapshotFromPlugin(snapshotId) {
     }
 
     const data = await response.json();
-    return data.snapshot;
+    return data.payload;
   } catch (error) {
     console.error(MODULE_NAME, "从插件读取快照时发生错误:", error);
     return null;
@@ -303,14 +303,15 @@ async function initializeEditor(snapshot) {
         contentErrors: metadata?.contentErrors,
       });
 
-      // 【修复】只有在 metadata 明确指示有解析错误时才报告错误
-      const hasErrors = Boolean(metadata?.contentErrors?.length);
+      // 【修复】只有当 JSON 无法解析时才报告错误
+      // content.json === undefined 表示 JSON 解析失败
+      const hasErrors = content?.json === undefined;
 
       snapshotState.hasErrors = hasErrors;
       snapshotState.dirty = true;
 
-      // 【修复】只要 json 不是 undefined，就更新 draftBody
-      if (content?.json !== undefined) {
+      // 只要 JSON 解析成功就更新 draftBody
+      if (!hasErrors) {
         snapshotState.draftBody = content.json;
       }
 

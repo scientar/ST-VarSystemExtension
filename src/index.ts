@@ -249,15 +249,16 @@ function handleEditorChange(content, _previousContent, metadata) {
     contentErrors: metadata?.contentErrors,
   });
 
-  // 【修复】只有在 metadata 明确指示有解析错误时才报告错误
-  // 移除 content?.json === undefined 的检查，因为合法的 JSON 值可能是 null、{}、[] 等
-  const hasErrors = Boolean(metadata?.contentErrors?.length);
+  // 【修复】只有当 JSON 无法解析时才报告错误
+  // content.json === undefined 表示 JSON 解析失败
+  // content.json 可以是 null、{}、[] 等合法值
+  const hasErrors = content?.json === undefined;
 
   templateState.hasErrors = hasErrors;
   templateState.dirty = true;
 
-  // 【修复】只要 json 不是 undefined，就更新 draftBody（包括 null、{}、[] 等合法值）
-  if (content?.json !== undefined) {
+  // 只要 JSON 解析成功就更新 draftBody
+  if (!hasErrors) {
     templateState.draftBody = cloneJSON(content.json);
   }
 
