@@ -90,9 +90,29 @@ export function createVariableBlockEditor(options = {}) {
             if (silentUpdate) {
               return;
             }
-            currentValue = cloneValue(content?.json ?? currentValue ?? {});
+
+            // 【新增】处理 text 模式
+            let processedContent = content;
+            if (content?.text !== undefined) {
+              // Text 模式：需要验证并解析
+              const validationErrors = editorInstance.validate();
+              if (validationErrors === undefined) {
+                // 无错误，使用 JSON.parse 解析
+                try {
+                  const parsed = JSON.parse(content.text);
+                  processedContent = { json: parsed, text: content.text };
+                } catch (e) {
+                  processedContent = { json: undefined, text: content.text };
+                }
+              } else {
+                // 有错误
+                processedContent = { json: undefined, text: content.text };
+              }
+            }
+
+            currentValue = cloneValue(processedContent?.json ?? currentValue ?? {});
             if (typeof onChange === "function") {
-              onChange(content, previousContent, metadata);
+              onChange(processedContent, previousContent, metadata);
             }
           },
         },

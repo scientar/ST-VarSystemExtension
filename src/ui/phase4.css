@@ -58,8 +58,8 @@
 }
 
 /* 修复按钮文字换行问题 */
-#var-system-drawer .var-system-toolbar button,
-#var-system-drawer .var-system-toolbar .menu_button {
+#var_system_drawer .var-system-toolbar button,
+#var_system_drawer .var-system-toolbar .menu_button {
   white-space: nowrap;
 }
 
@@ -172,7 +172,7 @@
 /* ==================== 按钮统一样式 ==================== */
 
 /* 变量系统扩展内所有按钮的基础样式 */
-#var-system-drawer .menu_button {
+#var_system_drawer .menu_button {
   display: inline-flex !important;
   align-items: center;
   white-space: nowrap;
@@ -180,9 +180,9 @@
 }
 
 /* 工具栏和操作区按钮 */
-#var-system-drawer .var-system-toolbar .menu_button,
-#var-system-drawer .var-system-actions .menu_button,
-#var-system-drawer .var-system-empty-state .menu_button {
+#var_system_drawer .var-system-toolbar .menu_button,
+#var_system_drawer .var-system-actions .menu_button,
+#var_system_drawer .var-system-empty-state .menu_button {
   padding: 6px 12px;
   min-width: 80px;
   font-size: 14px;
@@ -196,7 +196,7 @@
 }
 
 /* 图标按钮（无文字） */
-#var-system-drawer .menu_button_icon {
+#var_system_drawer .menu_button_icon {
   min-width: auto;
   padding: 6px;
   aspect-ratio: 1;
@@ -204,10 +204,10 @@
 
 /* 响应式：小屏幕下适配 */
 @media (max-width: 640px) {
-  #var-system-drawer .var-system-toolbar .menu_button span:not(.var-system-scope-toggle span) {
+  #var_system_drawer .var-system-toolbar .menu_button span:not(.var-system-scope-toggle span) {
     display: none;
   }
-  #var-system-drawer .var-system-toolbar .menu_button:not(.var-system-scope-toggle) {
+  #var_system_drawer .var-system-toolbar .menu_button:not(.var-system-scope-toggle) {
     min-width: auto;
     padding: 6px;
   }
@@ -833,11 +833,11 @@
     align-items: stretch;
   }
 
-  #var-system-drawer .var-system-setting-action {
+  #var_system_drawer .var-system-setting-action {
     width: 100%;
   }
 
-  #var-system-drawer .var-system-setting-action button {
+  #var_system_drawer .var-system-setting-action button {
     width: 100%;
   }
 

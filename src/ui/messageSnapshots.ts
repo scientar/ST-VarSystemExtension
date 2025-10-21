@@ -17,6 +17,11 @@ import { createVariableBlockEditor } from "../editor/variableBlockEditor";
 
 const MODULE_NAME = "[ST-VarSystemExtension/MessageSnapshots]";
 
+// JSON 编辑器资源 URL
+const JSON_EDITOR_VERSION = "3.10.0";
+const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/themes/jse-theme-dark.css`;
+const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/standalone.js`;
+
 // 编辑器实例
 let editorController = null;
 
@@ -126,6 +131,7 @@ export async function loadFloorList() {
   $select.empty();
 
   let hasSnapshots = false;
+  let maxFloorNumber = -1; // 【新增】跟踪最大楼层号
 
   // 遍历所有消息，只添加有快照标识符的楼层
   for (let i = 0; i < chat.length; i++) {
@@ -141,6 +147,7 @@ export async function loadFloorList() {
 
     if (snapshotId) {
       hasSnapshots = true;
+      maxFloorNumber = i; // 【新增】更新最大楼层号
       const $option = $("<option>");
       $option.val(i);
       $option.text(`第 ${i} 层 - AI 消息 (Swipe ${swipeId})`);
@@ -150,6 +157,10 @@ export async function loadFloorList() {
 
   if (!hasSnapshots) {
     $select.html('<option value="">暂无快照楼层</option>');
+  } else if (maxFloorNumber >= 0) {
+    // 【新增】自动加载最后一层快照
+    $select.val(maxFloorNumber);
+    await loadFloorSnapshot(maxFloorNumber);
   }
 }
 
@@ -293,6 +304,8 @@ async function initializeEditor(snapshot) {
   // 创建新编辑器（【修复】传入 options 对象并包含 onChange 回调）
   editorController = createVariableBlockEditor({
     container,
+    styleUrl: JSON_EDITOR_STYLE_URL,
+    scriptUrl: JSON_EDITOR_SCRIPT_URL,
     onChange: (content, _previousContent, metadata) => {
       // 【调试】记录编辑器变化
       console.log('[MessageSnapshots] Editor change:', {
@@ -318,6 +331,9 @@ async function initializeEditor(snapshot) {
       // 更新保存按钮状态
       $("#var-system-save-snapshot-btn").prop("disabled", hasErrors);
     },
+    onFallback: () => {
+      console.warn(MODULE_NAME, 'JSON 编辑器资源加载失败，已降级为纯文本模式');
+    },
   });
 
   await editorController.ensureReady();
@@ -339,9 +355,15 @@ async function saveSnapshot() {
   }
 
   try {
-    const snapshot = editorController.get();
+    const content = editorController.get();
 
-    // 调用插件更新快照（【修复】添加 CSRF headers）
+    // 【新增】验证 JSON 是否解析成功
+    if (content?.json === undefined) {
+      toastr.error("快照数据格式错误，请检查 JSON");
+      return;
+    }
+
+    // 调用插件更新快照（【修复】添加 CSRF headers，只发送 json 数据）
     const response = await fetch(
       `/api/plugins/var-manager/var-manager/snapshots/${snapshotState.currentSnapshotId}`,
       {
@@ -350,7 +372,7 @@ async function saveSnapshot() {
           ...getRequestHeaders(),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ snapshot }),
+        body: JSON.stringify({ snapshot: content.json }),
       },
     );
 
@@ -375,7 +397,13 @@ async function saveSnapshot() {
  * 保存为全局快照
  */
 async function saveAsGlobalSnapshot() {
-  const snapshot = editorController.get();
+  const content = editorController.get();
+
+  // 【新增】验证 JSON 是否解析成功
+  if (content?.json === undefined) {
+    toastr.error("快照数据格式错误，请检查 JSON");
+    return;
+  }
 
   // 弹窗输入标签
   const tags = await callGenericPopup(
@@ -395,7 +423,7 @@ async function saveAsGlobalSnapshot() {
     .filter((t) => t);
 
   try {
-    // 调用全局快照 API（【修复】添加 CSRF headers）
+    // 调用全局快照 API（【修复】添加 CSRF headers，只发送 json 数据）
     const response = await fetch(
       "/api/plugins/var-manager/var-manager/global-snapshots",
       {
@@ -405,7 +433,7 @@ async function saveAsGlobalSnapshot() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          snapshot,
+          snapshot: content.json,
           tags: tagArray,
         }),
       },

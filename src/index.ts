@@ -1540,6 +1540,16 @@ async function saveCurrentSnapshot() {
     if (snapshotsState.editorController) {
       try {
         const content = snapshotsState.editorController.get();
+        // 【新增】验证 JSON 是否解析成功
+        if (content?.json === undefined) {
+          await callGenericPopup(
+            "编辑器内容有误，请检查 JSON 格式",
+            POPUP_TYPE.TEXT,
+            "",
+            { okButton: "确定" },
+          );
+          return;
+        }
         snapshotBody = content.json;
       } catch (error) {
         console.error(`${EXTENSION_LOG_PREFIX} 获取编辑器内容失败:`, error);
