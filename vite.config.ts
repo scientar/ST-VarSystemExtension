@@ -16,8 +16,8 @@ const externals = {
 
 // 修复路径计算：使用固定的相对路径
 // 扩展安装位置：public/scripts/extensions/third-party/ST-VarSystemExtension/dist/
-// 到 public/ 的相对路径：../../../../../public
-const relative_sillytavern_path = '../../../../../public';
+// 到 public/ 的相对路径：../../../../..（向上 5 层）
+const relative_sillytavern_path = '../../../../..';
 
 export default defineConfig(({ mode }) => ({
   plugins: [
