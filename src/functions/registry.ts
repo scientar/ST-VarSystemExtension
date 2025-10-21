@@ -5,7 +5,7 @@
  * 本地函数：存储在 character.data.extensions.st_var_system.functions (角色专属)
  */
 
-import { error, log, warn } from "../logger.js";
+import { error, log, warn } from "../logger";
 
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";
 

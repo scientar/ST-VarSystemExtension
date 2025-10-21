@@ -1,4 +1,4 @@
-import type { DEFAULT_NOTE_FORMAT } from "./constants.js";
+import type { DEFAULT_NOTE_FORMAT } from "./constants";
 
 declare module "./parser.js" {
   export interface TemplateMeta {
@@ -61,7 +61,7 @@ declare module "./serializer.js" {
     TemplateNode,
     ObjectTemplateNode,
     ParsedTemplate,
-  } from "./parser.js";
+  } from "./parser";
 
   export function serializeTemplateNode(node: TemplateNode): unknown;
   export function serializeTemplateModel(

@@ -16,13 +16,13 @@
  * @module events/listeners
  */
 
-import { processMessage, reprocessFromMessage } from "./processor.js";
+import { processMessage, reprocessFromMessage } from "./processor";
 
 const MODULE_NAME = "[ST-VarSystemExtension/listeners]";
 
 // 从 SillyTavern 导入事件类型和相关 API
 // 使用绝对路径（从网站根目录开始）避免沙箱环境下的路径问题
-import { saveChat, eventSource, event_types } from '/script.js';
+import { saveChat, eventSource, event_types } from '@sillytavern/script';
 
 // CSRF Token 缓存
 let cachedCsrfToken = null;

@@ -7,9 +7,9 @@
 export {
   registerEventListeners,
   unregisterEventListeners,
-} from "./listeners.js";
-export { processMessage, reprocessFromMessage } from "./processor.js";
+} from "./listeners";
+export { processMessage, reprocessFromMessage } from "./processor";
 export {
   getCurrentSnapshotVariables,
   injectSnapshotVariables,
-} from "./variableInjector.js";
+} from "./variableInjector";

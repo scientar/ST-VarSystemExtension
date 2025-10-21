@@ -3,8 +3,8 @@
  * 负责查找快照锚点、获取消息范围等
  */
 
-import { isAIMessage } from "./messageUtils.js";
-import { getSnapshotId, loadSnapshot } from "./snapshotIdentifier.js";
+import { isAIMessage } from "./messageUtils";
+import { getSnapshotId, loadSnapshot } from "./snapshotIdentifier";
 
 /**
  * 向上查找最近的快照锚点(有标识符的 AI 消息)

@@ -10,10 +10,10 @@
  * 编辑器复用：VariableBlockEditor（与角色模板/全局快照相同）
  */
 
-import { getContext } from "/scripts/extensions.js";
-import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
-import { getRequestHeaders } from "/script.js";
-import { createVariableBlockEditor } from "../editor/variableBlockEditor.js";
+import { getContext } from "@sillytavern/scripts/extensions";
+import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
+import { getRequestHeaders } from "@sillytavern/script";
+import { createVariableBlockEditor } from "../editor/variableBlockEditor";
 
 const MODULE_NAME = "[ST-VarSystemExtension/MessageSnapshots]";
 

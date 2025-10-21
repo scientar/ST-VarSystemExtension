@@ -14,17 +14,17 @@
  * @module events/processor
  */
 
-import { executeFunctionPipeline } from "../functions/executor.js";
-import { functionRegistry } from "../functions/registry.js";
+import { executeFunctionPipeline } from "../functions/executor";
+import { functionRegistry } from "../functions/registry";
 import {
   getSnapshotId,
   saveSnapshotToPlugin,
-} from "../snapshots/snapshotIdentifier.js";
+} from "../snapshots/snapshotIdentifier";
 import {
   findSnapshotAnchor,
   getAIMessageRange,
-} from "../snapshots/snapshotResolver.js";
-import { injectSnapshotVariables } from "./variableInjector.js";
+} from "../snapshots/snapshotResolver";
+import { injectSnapshotVariables } from "./variableInjector";
 
 const MODULE_NAME = "[ST-VarSystemExtension/processor]";
 

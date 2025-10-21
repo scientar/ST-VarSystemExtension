@@ -3,7 +3,8 @@
  * 负责生成、读写、管理消息快照的唯一标识符
  */
 
-import { getCurrentSwipeId } from "./messageUtils.js";
+import { getRequestHeaders } from "@sillytavern/script";
+import { getCurrentSwipeId } from "./messageUtils";
 
 const SNAPSHOT_ID_KEY = "st_var_system_snapshot_id";
 

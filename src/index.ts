@@ -1,21 +1,22 @@
+import "@/global.css";
 import {
   renderExtensionTemplateAsync,
   writeExtensionField,
-} from "/scripts/extensions.js";
-import { event_types, eventSource, getRequestHeaders } from "/script.js";
-import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
-import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
+} from "@sillytavern/scripts/extensions";
+import { event_types, eventSource, getRequestHeaders } from "@sillytavern/script";
+import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
+import { createVariableBlockEditor } from "@/editor/variableBlockEditor";
 import {
   registerEventListeners,
   unregisterEventListeners,
-} from "./src/events/index.js";
-import { initFunctionLibrary } from "./src/ui/functionLibrary.js";
-import { initMessageSnapshots } from "./src/ui/messageSnapshots.js";
+} from "@/events/index";
+import { initFunctionLibrary } from "@/ui/functionLibrary";
+import { initMessageSnapshots } from "@/ui/messageSnapshots";
 import {
   initReprocessButton,
   updateButtonVisibility,
-} from "./src/ui/reprocessButton.js";
-import { initSettings } from "./src/ui/settings.js";
+} from "@/ui/reprocessButton";
+import { initSettings } from "@/ui/settings";
 
 const EXTENSION_NAMESPACE = "st-var-system";
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";

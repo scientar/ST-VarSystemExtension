@@ -4,9 +4,9 @@
  * 功能：清除最后一层 AI 消息的快照标识符，重新运行处理流程
  */
 
-import { getContext } from '/scripts/extensions.js';
-import { saveChat } from '/script.js';
-import { reprocessFromMessage } from "../events/processor.js";
+import { getContext } from '@sillytavern/scripts/extensions';
+import { saveChat } from '@sillytavern/script';
+import { reprocessFromMessage } from "../events/processor";
 
 const MODULE_NAME = "[ST-VarSystemExtension/reprocessButton]";
 

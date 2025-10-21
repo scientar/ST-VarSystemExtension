@@ -1,4 +1,4 @@
-import { DEFAULT_NOTE_FORMAT, EXTENSIBLE_MARKER } from "./constants.js";
+import { DEFAULT_NOTE_FORMAT, EXTENSIBLE_MARKER } from "./constants";
 
 function isPlainObject(value) {
   return (

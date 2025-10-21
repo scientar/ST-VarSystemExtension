@@ -1,5 +1,5 @@
-import { EXTENSIBLE_MARKER } from "./constants.js";
-import { createEmptyObjectNode } from "./parser.js";
+import { EXTENSIBLE_MARKER } from "./constants";
+import { createEmptyObjectNode } from "./parser";
 
 function cloneValue(value) {
   if (value === null || typeof value !== "object") {

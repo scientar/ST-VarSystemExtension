@@ -2,7 +2,7 @@
  * 函数执行引擎 - 执行函数调用，生成新快照
  */
 
-import { error, log, warn } from "../logger.js";
+import { error, log, warn } from "../logger";
 
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";
 

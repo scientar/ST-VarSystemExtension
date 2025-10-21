@@ -14,10 +14,10 @@ import {
   extension_settings,
   getContext,
   writeExtensionField,
-} from "/scripts/extensions.js";
-import { saveSettingsDebounced } from "/script.js";
-import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
-import { functionRegistry } from "../functions/registry.js";
+} from "@sillytavern/scripts/extensions";
+import { saveSettingsDebounced } from "@sillytavern/script";
+import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
+import { functionRegistry } from "../functions/registry";
 
 const MODULE_NAME = "[ST-VarSystemExtension/FunctionLibrary]";
 const EXTENSION_SETTINGS_KEY = "st_var_system";
