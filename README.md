@@ -42,6 +42,8 @@
 - 📥 导入快照到编辑器
 - 🧹 分离 Schema 功能
 - 🌍 将楼层快照保存为全局快照
+- 最新快照会被加入名为 vs_stat_data 的聊天变量
+- 每个 ai 消息会添加<VarSystemStatusPlaceholder/>作为占位符
 
 ### 4. 函数库管理
 
