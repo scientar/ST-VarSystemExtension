@@ -14,10 +14,10 @@ const externals = {
   '@popperjs/core': 'Popper',
 } as const;
 
-const relative_sillytavern_path = path.relative(
-  path.join(__dirname, 'dist'),
-  __dirname.substring(0, __dirname.lastIndexOf('public') + 6),
-);
+// 修复路径计算：使用固定的相对路径
+// 扩展安装位置：public/scripts/extensions/third-party/ST-VarSystemExtension/dist/
+// 到 public/ 的相对路径：../../../../../public
+const relative_sillytavern_path = '../../../../../public';
 
 export default defineConfig(({ mode }) => ({
   plugins: [
