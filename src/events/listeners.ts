@@ -91,6 +91,14 @@ async function handleMessageReceived(messageId) {
 
   try {
     await processMessage(messageId);
+
+    // 处理完成后刷新楼层快照列表
+    try {
+      const { loadFloorList } = await import('../ui/messageSnapshots.js');
+      await loadFloorList();
+    } catch (e) {
+      console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+    }
   } catch (error) {
     console.error(MODULE_NAME, "MESSAGE_RECEIVED 处理失败:", error);
   }
@@ -123,6 +131,14 @@ async function handleMessageSwiped(messageId) {
     console.log(MODULE_NAME, `当前 swipe ID: ${swipeId}`);
 
     await processMessage(messageId, swipeId);
+
+    // 处理完成后刷新楼层快照列表
+    try {
+      const { loadFloorList } = await import('../ui/messageSnapshots.js');
+      await loadFloorList();
+    } catch (e) {
+      console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+    }
   } catch (error) {
     console.error(MODULE_NAME, "MESSAGE_SWIPED 处理失败:", error);
   }
@@ -167,6 +183,15 @@ async function handleChatChanged(chatFileName) {
       if (message.is_user === false || message.role === "assistant") {
         console.log(MODULE_NAME, `处理最后一条 AI 消息: #${i}`);
         await processMessage(i);
+
+        // 处理完成后刷新楼层快照列表
+        try {
+          const { loadFloorList } = await import('../ui/messageSnapshots.js');
+          await loadFloorList();
+        } catch (e) {
+          console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+        }
+
         break;
       }
     }
@@ -208,6 +233,14 @@ async function handleMessageDeleted(deletedMessageId) {
     // 注意：消息删除后，后续消息的 ID 会前移，所以从 deletedMessageId 开始
     console.log(MODULE_NAME, `从消息 #${deletedMessageId} 开始重新处理`);
     await reprocessFromMessage(deletedMessageId);
+
+    // 处理完成后刷新楼层快照列表
+    try {
+      const { loadFloorList } = await import('../ui/messageSnapshots.js');
+      await loadFloorList();
+    } catch (e) {
+      console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+    }
   } catch (error) {
     console.error(MODULE_NAME, "MESSAGE_DELETED 处理失败:", error);
   }

@@ -12,7 +12,7 @@
 
 import { getContext } from "@sillytavern/scripts/extensions";
 import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
-import { getRequestHeaders } from "@sillytavern/script";
+import { getRequestHeaders, eventSource, event_types } from "@sillytavern/script";
 import { createVariableBlockEditor } from "../editor/variableBlockEditor";
 
 const MODULE_NAME = "[ST-VarSystemExtension/MessageSnapshots]";
@@ -111,7 +111,7 @@ function bindEventHandlers() {
 /**
  * 加载楼层列表（只显示有快照的楼层）
  */
-async function loadFloorList() {
+export async function loadFloorList() {
   const context = getContext();
   const chat = context.chat;
 
@@ -534,3 +534,8 @@ function stripMvuMetadata(obj) {
   }
   return obj;
 }
+
+// ============================================================================
+// 楼层列表刷新现已由处理流程统一调度（listeners.ts）
+// 移除独立的事件监听器以避免竞态条件
+// ============================================================================

@@ -71,18 +71,8 @@
 
 ### 安装扩展
 
-#### 方法一：通过 SillyTavern 扩展管理（推荐）
-
-1. 打开 SillyTavern
-2. 点击顶部的扩展图标（拼图图标）
-3. 在扩展管理界面，点击"安装扩展"
-4. 搜索 "变量系统" 或 "VarSystem"
-5. 点击安装按钮
-
-#### 方法二：通过 URL 安装
-
 1. 打开 SillyTavern 的扩展管理界面
-2. 点击"从 URL 安装"
+2. 点击"安装扩展"
 3. 输入本仓库的 URL：`https://github.com/scientar/ST-VarSystemExtension`
 4. 点击确认安装
 
@@ -125,12 +115,8 @@
 
 本项目的开发离不开以下优秀项目的启发和参考：
 
-- **[酒馆助手 (JS-Slash-Runner)](https://github.com/N0vi028/JS-Slash-Runner)**：感谢提供的宝贵参考文件和 SillyTavern 扩展开发指引，本项目大量借鉴了其代码结构和实现方式
-- **[MagVarUpdate (MVU)](https://github.com/MagicalAstrogy/MagVarUpdate)**：感谢其变量管理设计思路和 Schema 系统的灵感，让我们理解了如何在对话中有效管理复杂变量
-- **[SAM (State-Action Manager)](https://github.com/Bronya-Rand/STScript-StateMachine)**：感谢其函数调用语法设计，为本项目的函数库系统提供了重要参考
-- **记忆增强系统**：感谢其对变量持久化和版本管理的思路启发
-
-同时也感谢 SillyTavern 社区的所有贡献者和用户，你们的支持是本项目持续改进的动力！
+- **[酒馆助手 (JS-Slash-Runner)]**：感谢提供的宝贵参考文件和 SillyTavern 扩展开发指引
+- **[MagVarUpdate (MVU)]**、**[SAM]**、[记忆增强]提供的灵感
 
 ## 开发说明
 
@@ -146,9 +132,3 @@
 ## 许可证
 
 本项目采用 MIT 许可证。详见 LICENSE 文件。
-
-## 相关链接
-
-- [后端插件 ST-VarSystemPlugin](https://github.com/scientar/ST-VarSystemPlugin)
-- [SillyTavern 官方仓库](https://github.com/SillyTavern/SillyTavern)
-- [酒馆助手文档](https://n0vi028.github.io/JS-Slash-Runner-Doc/)

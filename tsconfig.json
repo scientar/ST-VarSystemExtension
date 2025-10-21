@@ -39,6 +39,7 @@
   },
   "include": [
     "*.d.ts",
+    "@types/**/*.d.ts",
     "src/**/*.ts",
     "../../../../**/*.js" // for intelligence
   ],

@@ -9,7 +9,7 @@ import pluginExternal from 'vite-plugin-external';
 const externals = {
   jquery: '$',
   hljs: 'hljs',
-  lodash: '_',
+  // lodash: '_', // 已改为打包到扩展中，确保 window._ 始终可用
   toastr: 'toastr',
   '@popperjs/core': 'Popper',
 } as const;

@@ -1,3 +1,12 @@
+// ============================================================================
+// 确保 lodash 全局可用（用于内置函数执行器）
+// ============================================================================
+import _ from 'lodash';
+if (typeof window._ === 'undefined') {
+  window._ = _;
+  console.log('[ST-VarSystemExtension] Lodash 已注入到 window._');
+}
+
 import "@/global.css";
 import {
   renderExtensionTemplateAsync,
@@ -12,11 +21,9 @@ import {
 } from "@/events/index";
 import { initFunctionLibrary } from "@/ui/functionLibrary";
 import { initMessageSnapshots } from "@/ui/messageSnapshots";
-import {
-  initReprocessButton,
-  updateButtonVisibility,
-} from "@/ui/reprocessButton";
 import { initSettings } from "@/ui/settings";
+import { createApp } from 'vue';
+import ReprocessMenuItem from '@/ui/reprocessMenuItem.vue';
 
 const EXTENSION_NAMESPACE = "st-var-system";
 const EXTENSION_LOG_PREFIX = "[ST-VarSystemExtension]";
@@ -775,7 +782,7 @@ function openDrawer($icon, $content) {
 
 let currentTab = "character";
 
-function switchTab(tabName) {
+async function switchTab(tabName) {
   if (currentTab === tabName) return;
 
   currentTab = tabName;
@@ -815,7 +822,7 @@ function switchTab(tabName) {
     // 函数库：可以在这里触发刷新等操作
     console.log(`${EXTENSION_LOG_PREFIX} 函数库标签页已激活`);
   } else if (tabName === "messages") {
-    // 楼层快照：可以在这里触发刷新等操作
+    // 楼层快照：通过事件监听器自动刷新，无需手动触发
     console.log(`${EXTENSION_LOG_PREFIX} 楼层快照标签页已激活`);
   }
 }
@@ -2063,14 +2070,12 @@ async function initExtension() {
   registerEventListeners();
   console.log(`${EXTENSION_LOG_PREFIX} 事件监听器已注册`);
 
-  // 初始化"重新处理变量"按钮
-  initReprocessButton();
-  console.log(`${EXTENSION_LOG_PREFIX} 重新处理变量按钮已初始化`);
-
-  // 监听聊天和角色变化，更新按钮显示状态
-  eventSource.on(event_types.CHAT_CHANGED, updateButtonVisibility);
-  eventSource.on(event_types.MESSAGE_RECEIVED, updateButtonVisibility);
-  eventSource.on(event_types.CHARACTER_EDITOR_OPENED, updateButtonVisibility);
+  // 挂载"重新处理变量"菜单项（Vue 组件）
+  const reprocessMenuApp = createApp(ReprocessMenuItem);
+  const menuContainer = document.createElement('div');
+  document.body.appendChild(menuContainer);
+  reprocessMenuApp.mount(menuContainer);
+  console.log(`${EXTENSION_LOG_PREFIX} 重新处理变量菜单项已挂载`);
 }
 
 async function shutdownExtension() {
@@ -2079,15 +2084,6 @@ async function shutdownExtension() {
   eventSource.removeListener(
     event_types.CHARACTER_EDITOR_OPENED,
     onContextChanged,
-  );
-  eventSource.removeListener(event_types.CHAT_CHANGED, updateButtonVisibility);
-  eventSource.removeListener(
-    event_types.MESSAGE_RECEIVED,
-    updateButtonVisibility,
-  );
-  eventSource.removeListener(
-    event_types.CHARACTER_EDITOR_OPENED,
-    updateButtonVisibility,
   );
 
   // 卸载变量系统事件监听器（Phase 3）
