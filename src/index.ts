@@ -794,14 +794,16 @@ function switchTab(tabName) {
     }
   });
 
-  // 切换内容区域
-  document.querySelectorAll(".var-system-tab-content").forEach((content) => {
-    if (content.dataset.tab === tabName) {
-      content.style.display = "flex";
-    } else {
-      content.style.display = "none";
-    }
-  });
+  // 切换内容区域（只选择顶层容器，避免影响动态加载的内容）
+  document
+    .querySelectorAll(".var-system-tab-content[data-tab]")
+    .forEach((content) => {
+      if (content.dataset.tab === tabName) {
+        content.style.display = "flex";
+      } else {
+        content.style.display = "none";
+      }
+    });
 
   console.log(`${EXTENSION_LOG_PREFIX} 切换到标签页: ${tabName}`);
 
