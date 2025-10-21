@@ -18,9 +18,6 @@ import { createVariableBlockEditor } from "../editor/variableBlockEditor";
 const MODULE_NAME = "[ST-VarSystemExtension/MessageSnapshots]";
 
 // JSON 编辑器资源 URL
-const JSON_EDITOR_VERSION = "3.10.0";
-const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/themes/jse-theme-dark.css`;
-const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/standalone.js`;
 
 // 编辑器实例
 let editorController = null;
@@ -304,8 +301,8 @@ async function initializeEditor(snapshot) {
   // 创建新编辑器（【修复】传入 options 对象并包含 onChange 回调）
   editorController = createVariableBlockEditor({
     container,
-    styleUrl: JSON_EDITOR_STYLE_URL,
-    scriptUrl: JSON_EDITOR_SCRIPT_URL,
+    
+    
     onChange: (content, _previousContent, metadata) => {
       // 【调试】记录编辑器变化
       console.log('[MessageSnapshots] Editor change:', {

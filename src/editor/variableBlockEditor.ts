@@ -1,16 +1,12 @@
 import { destr, safeDestr } from 'destr';
-
-const stylePromises = new Map();
-const modulePromises = new Map();
-const assetFailures = new Map();
+import { createJSONEditor } from 'vanilla-jsoneditor';
+import 'vanilla-jsoneditor/themes/jse-theme-dark.css';
 
 export function createVariableBlockEditor(options = {}) {
   const {
     container,
     containerId,
     initialValue,
-    styleUrl,
-    scriptUrl,
     readOnly = false,
     onChange,
     onFallback,
@@ -66,15 +62,6 @@ export function createVariableBlockEditor(options = {}) {
     }
 
     try {
-      await ensureStyle(styleUrl);
-      const moduleExports = await ensureModule(scriptUrl);
-      const createJSONEditor =
-        moduleExports?.createJSONEditor ?? globalThis.createJSONEditor;
-
-      if (typeof createJSONEditor !== "function") {
-        throw new Error("JSON 编辑器模块未提供 createJSONEditor");
-      }
-
       // 从 localStorage 读取用户偏好的模式，或使用传入的默认模式
       const savedMode = localStorage.getItem("varSystemEditorMode");
       const initialMode = savedMode || defaultMode || "text";
@@ -382,69 +369,4 @@ export function createVariableBlockEditor(options = {}) {
     isFallback,
     setContainer,
   };
-}
-
-function ensureStyle(url) {
-  if (!url) {
-    return Promise.resolve();
-  }
-
-  if (stylePromises.has(url)) {
-    return stylePromises.get(url);
-  }
-
-  const existing = document.querySelector(
-    `link[data-jsoneditor-style="${CSS.escape(url)}"]`,
-  );
-  if (existing) {
-    stylePromises.set(url, Promise.resolve());
-    return stylePromises.get(url);
-  }
-
-  const promise = new Promise((resolve, reject) => {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = url;
-    link.dataset.jsoneditorStyle = url;
-    link.addEventListener("load", () => resolve());
-    link.addEventListener("error", (event) => {
-      link.remove();
-      stylePromises.delete(url);
-      reject(event);
-    });
-    document.head.appendChild(link);
-  });
-
-  stylePromises.set(url, promise);
-  return promise;
-}
-
-function ensureModule(url) {
-  if (!url) {
-    return Promise.resolve({ createJSONEditor: globalThis.createJSONEditor });
-  }
-
-  if (assetFailures.get(url)) {
-    return Promise.reject(new Error("JSON 编辑器模块加载已失败"));
-  }
-
-  if (modulePromises.has(url)) {
-    return modulePromises.get(url);
-  }
-
-  const promise = import(/* webpackIgnore: true */ /* @vite-ignore */ url)
-    .then((module) => {
-      if (!module?.createJSONEditor && !globalThis.createJSONEditor) {
-        throw new Error("JSON 编辑器模块未提供 createJSONEditor");
-      }
-      return module;
-    })
-    .catch((error) => {
-      modulePromises.delete(url);
-      assetFailures.set(url, true);
-      throw error;
-    });
-
-  modulePromises.set(url, promise);
-  return promise;
 }

@@ -50,9 +50,6 @@ const templateState = {
   loading: false, // 是否正在加载
 };
 
-const JSON_EDITOR_VERSION = "3.10.0";
-const JSON_EDITOR_STYLE_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/themes/jse-theme-dark.css`;
-const JSON_EDITOR_SCRIPT_URL = `https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@${JSON_EDITOR_VERSION}/standalone.js`;
 let templateButtons = null;
 let pendingTemplateRefresh = null;
 
@@ -214,13 +211,13 @@ async function ensureEditorInstance({ readOnly = false } = {}) {
     templateState.editorController = createVariableBlockEditor({
       container,
       initialValue: templateState.draftBody ?? {},
-      styleUrl: JSON_EDITOR_STYLE_URL,
-      scriptUrl: JSON_EDITOR_SCRIPT_URL,
+      
+      
       readOnly,
       onChange: handleEditorChange,
       onFallback: () => {
         updateTemplateStatus(
-          "JSON 编辑器资源加载失败，已降级为纯文本模式。",
+          "JSON 编辑器初始化失败，已降级为纯文本模式。",
           "warn",
         );
         updateTemplateControls();
@@ -1085,12 +1082,21 @@ async function ensureSnapshotEditorInstance() {
     snapshotsState.editorController = createVariableBlockEditor({
       container,
       initialValue: {},
-      styleUrl: JSON_EDITOR_STYLE_URL,
-      scriptUrl: JSON_EDITOR_SCRIPT_URL,
+      
+      
       readOnly: false,
-      onChange: () => {
-        // onChange callback - 内容变化时更新状态
-        updateSnapshotEditorStatus("已修改，未保存", "warn");
+      onChange: (content, _previousContent, metadata) => {
+        // 【修复】完整的 onChange 处理：检测错误并更新 draftSnapshot
+        const hasErrors = content?.json === undefined;
+
+        if (!hasErrors && snapshotsState.draftSnapshot) {
+          snapshotsState.draftSnapshot.snapshotBody = content.json;
+        }
+
+        updateSnapshotEditorStatus(
+          hasErrors ? "JSON 无法解析，请检查错误。" : "已修改，未保存",
+          hasErrors ? "error" : "warn"
+        );
       },
       onFallback: () => {
         console.warn(

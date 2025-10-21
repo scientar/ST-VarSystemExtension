@@ -349,66 +349,61 @@
   position: relative;
   overflow: visible;
   margin-bottom: 16px;
-  min-height: 140px; /* 确保卡片有最小高度 */
-}
-
-.var-system-function-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--gradient-primary);
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
+  min-height: 140px;
 }
 
 .var-system-function-card:hover {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); /* 更深的阴影 */
-  transform: translateY(-3px); /* 更大的上移距离 */
-  border-color: rgba(255, 255, 255, 0.3); /* 更明显的边框高亮 */
-}
-
-.var-system-function-card:hover::before {
-  opacity: 1;
-  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5); /* 顶部条添加发光效果 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* 内置函数卡片特殊样式 */
 .var-system-function-card[data-builtin="true"] {
-  border-color: var(--var-primary, #3498db);
+  border-color: rgba(52, 152, 219, 0.3);
   background: linear-gradient(
-    180deg,
-    var(--var-primary-alpha, rgba(52, 152, 219, 0.15)) 0%,
-    var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3)) 40%
+    135deg,
+    rgba(52, 152, 219, 0.08) 0%,
+    var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3)) 50%
   );
   /* 左侧边框高亮 */
-  border-left: 3px solid var(--var-primary, #3498db);
+  border-left: 3px solid rgba(52, 152, 219, 0.6);
 }
 
-.var-system-function-card[data-builtin="true"]::before {
-  background: var(--gradient-info, linear-gradient(135deg, #9b59b6, #8e44ad));
-  opacity: 0.6;
+.var-system-function-card[data-builtin="true"]:hover {
+  border-color: rgba(52, 152, 219, 0.5);
+  border-left-color: rgba(52, 152, 219, 0.8);
+  box-shadow: 0 4px 16px rgba(52, 152, 219, 0.15);
 }
 
-/* 拖拽中的样式 */
+/* 拖拽中的样式 - 优化动画性能 */
 .var-system-function-card.ui-sortable-helper {
-  opacity: 0.8;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-  transform: rotate(2deg);
+  opacity: 0.9;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transform: rotate(1deg) scale(1.02);
+  transition: none; /* 拖拽时禁用过渡动画 */
+  will-change: transform; /* 提示浏览器优化 */
 }
 
-/* 拖拽占位符 */
+/* 拖拽占位符 - 优化视觉效果 */
 .var-system-sortable-placeholder {
-  background: var(--SmartThemeQuoteColor);
-  border: 2px dashed var(--SmartThemeBorderColor);
+  background: rgba(52, 152, 219, 0.1);
+  border: 2px dashed rgba(52, 152, 219, 0.3);
   border-radius: 8px;
   visibility: visible;
   height: auto;
   min-height: 120px;
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 .var-system-function-card-header {
   display: flex;
   gap: 0.75rem; /* 增加间距 */
