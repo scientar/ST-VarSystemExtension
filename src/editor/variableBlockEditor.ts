@@ -1,3 +1,5 @@
+import { destr, safeDestr } from 'destr';
+
 const stylePromises = new Map();
 const modulePromises = new Map();
 const assetFailures = new Map();
@@ -86,27 +88,30 @@ export function createVariableBlockEditor(options = {}) {
           navigationBar: false, // 隐藏导航栏（节省空间）
           statusBar: false, // 隐藏状态栏（节省空间）
           readOnly,
+          // 【关键】设置自定义 parser，使用 safeDestr 而不是 JSON.parse
+          parser: {
+            parse: safeDestr,
+            stringify: JSON.stringify,
+          },
           onChange: (content, previousContent, metadata) => {
             if (silentUpdate) {
               return;
             }
 
-            // 【新增】处理 text 模式
+            // 【简化】处理 text 模式
             let processedContent = content;
             if (content?.text !== undefined) {
-              // Text 模式：需要验证并解析
-              const validationErrors = editorInstance.validate();
-              if (validationErrors === undefined) {
-                // 无错误，使用 JSON.parse 解析
-                try {
-                  const parsed = JSON.parse(content.text);
-                  processedContent = { json: parsed, text: content.text };
-                } catch (e) {
-                  processedContent = { json: undefined, text: content.text };
-                }
+              // Text 模式：使用 validate() + destr()
+              if (editorInstance.validate() === undefined) {
+                processedContent = {
+                  json: destr(content.text),
+                  text: content.text,
+                };
               } else {
-                // 有错误
-                processedContent = { json: undefined, text: content.text };
+                processedContent = {
+                  json: undefined,
+                  text: content.text,
+                };
               }
             }
 

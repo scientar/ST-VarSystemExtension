@@ -8,6 +8,7 @@ if (typeof window._ === 'undefined') {
 }
 
 import "@/global.css";
+import "@/ui/design-system.scss";
 import {
   renderExtensionTemplateAsync,
   writeExtensionField,

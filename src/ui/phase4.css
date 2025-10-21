@@ -340,15 +340,16 @@
 }
 
 .var-system-function-card {
-  background: var(--SmartThemeBlurTintColor);
-  border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px; /* 增加内边距，使内容更舒适 */
-  transition: all var(--duration-base) var(--ease-out);
+  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-lg, 12px);
+  padding: 18px;
+  transition: all var(--duration-base, 250ms) var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
   cursor: default;
   position: relative;
-  overflow: visible; /* 改为 visible，避免截断 tooltip */
-  margin-bottom: 12px; /* 增加卡片间距，视觉更清晰 */
+  overflow: visible;
+  margin-bottom: 16px;
+  min-height: 140px; /* 确保卡片有最小高度 */
 }
 
 .var-system-function-card::before {
@@ -376,16 +377,18 @@
 
 /* 内置函数卡片特殊样式 */
 .var-system-function-card[data-builtin="true"] {
-  border-color: var(--var-primary);
+  border-color: var(--var-primary, #3498db);
   background: linear-gradient(
-    to bottom,
-    var(--var-primary-alpha),
-    var(--SmartThemeBlurTintColor)
+    180deg,
+    var(--var-primary-alpha, rgba(52, 152, 219, 0.15)) 0%,
+    var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3)) 40%
   );
+  /* 左侧边框高亮 */
+  border-left: 3px solid var(--var-primary, #3498db);
 }
 
 .var-system-function-card[data-builtin="true"]::before {
-  background: var(--gradient-info);
+  background: var(--gradient-info, linear-gradient(135deg, #9b59b6, #8e44ad));
   opacity: 0.6;
 }
 
@@ -438,10 +441,11 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600; /* 从bold改为600，更柔和 */
-  font-size: 1.15rem; /* 略微增大 */
+  font-weight: 600;
+  font-size: 1.1rem;
   flex: 1;
-  color: var(--SmartThemeEmColor); /* 使用强调色 */
+  color: var(--SmartThemeEmColor, #fff);
+  margin-bottom: 2px; /* 添加一点间距 */
 }
 
 .var-system-function-badges {
@@ -450,18 +454,18 @@
 }
 
 .var-system-badge {
-  padding: 5px 12px; /* 增加padding，更易识别 */
-  border-radius: var(--radius-full);
-  font-size: 0.8rem; /* 略微增大，更易读 */
-  font-weight: 600; /* 从bold改为600 */
+  padding: 4px 10px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.75rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.8px; /* 增加字间距 */
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); /* 更明显的阴影 */
-  transition: all var(--duration-fast) var(--ease-out);
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all var(--duration-fast, 150ms) var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
 }
 
 .var-system-badge-active {
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); /* 蓝色渐变，更鲜明 */
+  background: var(--gradient-primary, linear-gradient(135deg, #3498db, #2980b9));
   color: white;
   border: 1px solid rgba(52, 152, 219, 0.5);
 }
@@ -473,7 +477,7 @@
 }
 
 .var-system-badge-passive {
-  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); /* 紫色渐变，与主动形成对比 */
+  background: var(--gradient-info, linear-gradient(135deg, #9b59b6, #8e44ad));
   color: white;
   border: 1px solid rgba(155, 89, 182, 0.5);
 }
@@ -849,4 +853,21 @@
     text-align: center;
     font-size: 3rem;
   }
+}
+
+/* ==================== 弹出对话框中的按钮 ==================== */
+
+/* 提示词生成器对话框中的复制按钮（不在 #var_system_drawer 内） */
+.var-system-prompt-actions .menu_button {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-direction: row !important;
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.var-system-prompt-actions .menu_button i {
+  font-size: 16px;
 }
