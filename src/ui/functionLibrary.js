@@ -31,6 +31,11 @@ let currentScope = "global";
 export async function initFunctionLibrary() {
   console.log(MODULE_NAME, "初始化函数库界面");
 
+  // 【新增】注册内置函数（必须在加载存储之前）
+  const { initBuiltinFunctions } = await import('../functions/builtins.js');
+  initBuiltinFunctions(functionRegistry);
+  console.log(MODULE_NAME, "内置函数已注册");
+
   // 从存储加载函数
   await loadFunctionsFromStorage();
 

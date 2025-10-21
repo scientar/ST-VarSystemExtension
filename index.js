@@ -2,7 +2,7 @@ import {
   renderExtensionTemplateAsync,
   writeExtensionField,
 } from "/scripts/extensions.js";
-import { event_types, eventSource } from "/script.js";
+import { event_types, eventSource, getRequestHeaders } from "/script.js";
 import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
 import { createVariableBlockEditor } from "./src/editor/variableBlockEditor.js";
 import {
@@ -232,13 +232,24 @@ async function ensureEditorInstance({ readOnly = false } = {}) {
 }
 
 function handleEditorChange(content, _previousContent, metadata) {
-  const hasErrors =
-    Boolean(metadata?.contentErrors?.length) || content?.json === undefined;
+  // 【调试】记录编辑器变化的详细信息
+  console.log('[ST-VarSystemExtension] handleEditorChange:', {
+    hasContent: !!content,
+    hasJson: content?.json !== undefined,
+    jsonType: typeof content?.json,
+    hasContentErrors: !!metadata?.contentErrors?.length,
+    contentErrors: metadata?.contentErrors,
+  });
+
+  // 【修复】只有在 metadata 明确指示有解析错误时才报告错误
+  // 移除 content?.json === undefined 的检查，因为合法的 JSON 值可能是 null、{}、[] 等
+  const hasErrors = Boolean(metadata?.contentErrors?.length);
 
   templateState.hasErrors = hasErrors;
   templateState.dirty = true;
 
-  if (!hasErrors && content?.json !== undefined) {
+  // 【修复】只要 json 不是 undefined，就更新 draftBody（包括 null、{}、[] 等合法值）
+  if (content?.json !== undefined) {
     templateState.draftBody = cloneJSON(content.json);
   }
 
@@ -984,16 +995,12 @@ function normalizeSnapshotBody(snapshotBody, stripSchema = false) {
 async function callPluginAPI(endpoint, options = {}) {
   const url = `${PLUGIN_BASE_URL}${endpoint}`;
 
-  // 获取 CSRF token
-  const csrfToken = await getCsrfToken();
-
-  if (!csrfToken) {
-    console.error(`${EXTENSION_LOG_PREFIX} 无法获取 CSRF token，请求可能失败`);
-  }
+  // 【修复】使用 SillyTavern 标准的 getRequestHeaders() 获取所有必要的 headers（包括 CSRF token）
+  const standardHeaders = getRequestHeaders();
 
   const finalHeaders = {
+    ...standardHeaders,
     "Content-Type": "application/json",
-    "X-CSRF-Token": csrfToken,
     ...options.headers,
   };
 

@@ -12,6 +12,7 @@
 
 import { getContext } from "/scripts/extensions.js";
 import { callGenericPopup, POPUP_TYPE } from "/scripts/popup.js";
+import { getRequestHeaders } from "/script.js";
 import { createVariableBlockEditor } from "../editor/variableBlockEditor.js";
 
 const MODULE_NAME = "[ST-VarSystemExtension/MessageSnapshots]";
@@ -244,7 +245,10 @@ async function fetchSnapshotFromPlugin(snapshotId) {
       `/api/plugins/var-manager/var-manager/snapshots/${snapshotId}`,
       {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...getRequestHeaders(),
+          "Content-Type": "application/json",
+        },
       },
     );
 
@@ -286,24 +290,37 @@ async function initializeEditor(snapshot) {
     editorController = null;
   }
 
-  // 创建新编辑器
-  editorController = createVariableBlockEditor(container);
-  await editorController.ensureReady();
-  editorController.set(snapshot);
+  // 创建新编辑器（【修复】传入 options 对象并包含 onChange 回调）
+  editorController = createVariableBlockEditor({
+    container,
+    onChange: (content, _previousContent, metadata) => {
+      // 【调试】记录编辑器变化
+      console.log('[MessageSnapshots] Editor change:', {
+        hasContent: !!content,
+        hasJson: content?.json !== undefined,
+        jsonType: typeof content?.json,
+        hasContentErrors: !!metadata?.contentErrors?.length,
+        contentErrors: metadata?.contentErrors,
+      });
 
-  // 监听编辑器变化
-  editorController.onChange(() => {
-    snapshotState.dirty = true;
-    snapshotState.hasErrors = false; // 简化：假设没有语法错误
-    $("#var-system-save-snapshot-btn").prop("disabled", false);
+      // 【修复】只有在 metadata 明确指示有解析错误时才报告错误
+      const hasErrors = Boolean(metadata?.contentErrors?.length);
 
-    try {
-      snapshotState.draftBody = editorController.get();
-    } catch (_error) {
-      snapshotState.hasErrors = true;
-      $("#var-system-save-snapshot-btn").prop("disabled", true);
-    }
+      snapshotState.hasErrors = hasErrors;
+      snapshotState.dirty = true;
+
+      // 【修复】只要 json 不是 undefined，就更新 draftBody
+      if (content?.json !== undefined) {
+        snapshotState.draftBody = content.json;
+      }
+
+      // 更新保存按钮状态
+      $("#var-system-save-snapshot-btn").prop("disabled", hasErrors);
+    },
   });
+
+  await editorController.ensureReady();
+  editorController.set({ json: snapshot });
 }
 
 /**
@@ -323,12 +340,15 @@ async function saveSnapshot() {
   try {
     const snapshot = editorController.get();
 
-    // 调用插件更新快照
+    // 调用插件更新快照（【修复】添加 CSRF headers）
     const response = await fetch(
       `/api/plugins/var-manager/var-manager/snapshots/${snapshotState.currentSnapshotId}`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...getRequestHeaders(),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ snapshot }),
       },
     );
@@ -374,12 +394,15 @@ async function saveAsGlobalSnapshot() {
     .filter((t) => t);
 
   try {
-    // 调用全局快照 API
+    // 调用全局快照 API（【修复】添加 CSRF headers）
     const response = await fetch(
       "/api/plugins/var-manager/var-manager/global-snapshots",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...getRequestHeaders(),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           snapshot,
           tags: tagArray,

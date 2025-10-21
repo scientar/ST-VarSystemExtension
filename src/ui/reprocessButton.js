@@ -10,17 +10,22 @@ import { reprocessFromMessage } from "../events/processor.js";
 
 const MODULE_NAME = "[ST-VarSystemExtension/reprocessButton]";
 
+// 重试计数器
+let retryCount = 0;
+const MAX_RETRIES = 10;
+const RETRY_DELAY = 1000;
+
 /**
  * 初始化"重新处理变量"按钮
  */
 export function initReprocessButton() {
-  console.log(MODULE_NAME, "初始化重新处理变量按钮");
+  console.log(MODULE_NAME, `初始化重新处理变量按钮 (尝试 ${retryCount + 1}/${MAX_RETRIES})`);
 
   // 添加按钮到扩展消息按钮区域
   const buttonHtml = `
-    <div 
-      id="var-system-reprocess-btn" 
-      class="mes_button" 
+    <div
+      id="var-system-reprocess-btn"
+      class="mes_button"
       title="重新处理变量系统快照"
       style="display: none;"
     >
@@ -29,17 +34,33 @@ export function initReprocessButton() {
     </div>
   `;
 
-  // 确保 extraMesButtons 容器存在
+  // 【改进】确保 extraMesButtons 容器存在，支持多次重试
   if ($(".extraMesButtons").length === 0) {
-    console.warn(MODULE_NAME, "extraMesButtons 容器不存在，稍后重试");
-    // 延迟重试
-    setTimeout(initReprocessButton, 1000);
+    retryCount++;
+    if (retryCount < MAX_RETRIES) {
+      console.warn(
+        MODULE_NAME,
+        `extraMesButtons 容器不存在，将在 ${RETRY_DELAY}ms 后重试 (${retryCount}/${MAX_RETRIES})`,
+      );
+      setTimeout(initReprocessButton, RETRY_DELAY);
+    } else {
+      console.error(
+        MODULE_NAME,
+        `extraMesButtons 容器在 ${MAX_RETRIES} 次重试后仍不存在，放弃初始化`,
+      );
+    }
     return;
   }
+
+  // 重置重试计数
+  retryCount = 0;
 
   // 添加按钮（如果还没添加）
   if ($("#var-system-reprocess-btn").length === 0) {
     $(".extraMesButtons").append(buttonHtml);
+    console.log(MODULE_NAME, "重新处理变量按钮已添加到 DOM");
+  } else {
+    console.log(MODULE_NAME, "重新处理变量按钮已存在，跳过添加");
   }
 
   // 绑定点击事件

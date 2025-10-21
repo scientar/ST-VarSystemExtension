@@ -174,6 +174,7 @@ export async function saveSnapshot(params) {
       {
         method: "POST",
         headers: {
+          ...getRequestHeaders(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
