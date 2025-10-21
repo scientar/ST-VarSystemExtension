@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import { getContext } from '@sillytavern/scripts/extensions';
 import { saveChat, eventSource, event_types } from '@sillytavern/script';
 import { reprocessFromMessage } from '../events/processor';
@@ -129,4 +129,12 @@ eventSource.on(event_types.CHAT_CHANGED, updateVisibility);
 eventSource.on(event_types.MESSAGE_RECEIVED, updateVisibility);
 eventSource.on(event_types.MESSAGE_DELETED, updateVisibility);
 eventSource.on(event_types.CHARACTER_SELECTED, updateVisibility);
+
+// 组件卸载时清理事件监听器（防止内存泄漏）
+onUnmounted(() => {
+  eventSource.removeListener(event_types.CHAT_CHANGED, updateVisibility);
+  eventSource.removeListener(event_types.MESSAGE_RECEIVED, updateVisibility);
+  eventSource.removeListener(event_types.MESSAGE_DELETED, updateVisibility);
+  eventSource.removeListener(event_types.CHARACTER_SELECTED, updateVisibility);
+});
 </script>

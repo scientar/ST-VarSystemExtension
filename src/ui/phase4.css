@@ -3,12 +3,41 @@
  * Phase 4: 函数库管理 + 楼层快照界面
  */
 
+/* 导入设计系统 */
+@import './design-system.scss';
+
 /* ==================== 通用样式 ==================== */
 
 .var-system-tab-content {
   padding: 1rem;
   max-height: 70vh;
   overflow-y: auto;
+}
+
+/* ==================== 标签页样式 ==================== */
+
+.var-system-tab {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--SmartThemeBodyColor, #ccc);
+}
+
+.var-system-tab.active {
+  border-bottom-color: var(--SmartThemeQuoteColor, #3498db);
+  color: var(--SmartThemeEmColor, #fff);
+}
+
+.var-system-tab:hover:not(.active) {
+  background: var(--var-gray-50);
+  color: var(--SmartThemeEmColor, #fff);
 }
 
 .var-system-toolbar {
@@ -73,16 +102,63 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: var(--spacing-2xl);
   text-align: center;
   color: var(--SmartThemeBodyColor, #999);
-  opacity: 0.7;
+  animation: fadeInUp var(--duration-base) var(--ease-out);
 }
 
 .var-system-empty-state i {
-  margin-bottom: 1rem;
-  font-size: 3rem;
-  opacity: 0.5;
+  margin-bottom: var(--spacing-lg);
+  font-size: 4rem;
+  opacity: 0.3;
+  animation: pulse var(--duration-slower) var(--ease-in-out) infinite;
+}
+
+/* 渐变文字效果（支持的浏览器） */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .var-system-empty-state i {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
+/* 降级方案（不支持的浏览器） */
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .var-system-empty-state i {
+    color: var(--var-primary);
+  }
+}
+
+.var-system-empty-state p {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+.var-system-empty-state .var-system-hint {
+  font-size: var(--font-size-sm);
+  opacity: 0.7;
+}
+
+.var-system-empty-state button {
+  margin-top: var(--spacing-md);
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.var-system-empty-state button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
 .var-system-hint {
@@ -96,26 +172,215 @@
   font-size: 0.875rem;
 }
 
+/* ==================== 按钮统一样式 ==================== */
+
+/* 工具栏和操作区按钮 */
+.var-system-toolbar .menu_button,
+.var-system-actions .menu_button,
+.var-system-empty-state .menu_button {
+  padding: 6px 12px;
+  min-width: 80px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  white-space: nowrap;
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+/* 图标按钮（无文字） */
+.menu_button_icon {
+  min-width: auto;
+  padding: 6px;
+  aspect-ratio: 1;
+}
+
+/* 响应式：小屏幕下适配 */
+@media (max-width: 640px) {
+  .var-system-toolbar .menu_button span:not(.var-system-scope-toggle span) {
+    display: none;
+  }
+  .var-system-toolbar .menu_button:not(.var-system-scope-toggle) {
+    min-width: auto;
+    padding: 6px;
+  }
+}
+
 /* ==================== 函数库管理 ==================== */
+
+/* 搜索和过滤栏 */
+.var-system-search-filter-bar {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.var-system-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+}
+
+.var-system-search-box i.fa-search {
+  position: absolute;
+  left: var(--spacing-sm);
+  color: var(--SmartThemeBodyColor, #999);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.var-system-search-box input {
+  width: 100%;
+  padding-left: calc(var(--spacing-lg) + var(--spacing-sm));
+  padding-right: calc(var(--spacing-lg) + var(--spacing-sm));
+  border-radius: var(--radius-md);
+  border: 1px solid var(--SmartThemeBorderColor);
+  background: var(--SmartThemeBlurTintColor);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.var-system-search-box input:focus {
+  border-color: var(--var-primary);
+  box-shadow: var(--shadow-focus);
+  outline: none;
+}
+
+.var-system-search-box .clear-search-btn {
+  position: absolute;
+  right: var(--spacing-xs);
+  background: none;
+  border: none;
+  color: var(--SmartThemeBodyColor, #999);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+  z-index: 1;
+}
+
+.var-system-search-box .clear-search-btn:hover {
+  background: var(--var-gray-100);
+  color: var(--SmartThemeEmColor);
+}
+
+#var-system-type-filter,
+#var-system-status-filter {
+  min-width: 120px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--SmartThemeBorderColor);
+  background: var(--SmartThemeBlurTintColor);
+  padding: var(--spacing-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+#var-system-type-filter:focus,
+#var-system-status-filter:focus {
+  border-color: var(--var-primary);
+  box-shadow: var(--shadow-focus);
+  outline: none;
+}
 
 .var-system-function-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding-top: 4px; /* 为 hover 上移预留空间 */
+}
+
+/* 搜索结果提示 */
+.var-system-search-results-info {
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: var(--var-primary-alpha);
+  border-left: 3px solid var(--var-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  animation: fadeInDown var(--duration-base) var(--ease-out);
+}
+
+.var-system-search-results-info strong {
+  color: var(--var-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 无搜索结果 */
+.var-system-no-results {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  color: var(--SmartThemeBodyColor, #999);
+  animation: fadeInUp var(--duration-base) var(--ease-out);
+}
+
+.var-system-no-results i {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.3;
+}
+
+.var-system-no-results p {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+.var-system-no-results .var-system-hint {
+  font-size: var(--font-size-sm);
+  opacity: 0.7;
 }
 
 .var-system-function-card {
   background: var(--SmartThemeBlurTintColor);
   border: 1px solid var(--SmartThemeBorderColor);
-  border-radius: 8px;
-  padding: 1rem;
-  transition: box-shadow 0.2s;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  transition: all var(--duration-base) var(--ease-out);
   cursor: default;
+  position: relative;
+  overflow: visible; /* 改为 visible，避免截断 tooltip */
+  margin-bottom: 4px; /* 防止 hover 时抖动 */
+}
+
+.var-system-function-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 
 .var-system-function-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+  border-color: var(--var-gray-300);
+}
+
+.var-system-function-card:hover::before {
+  opacity: 1;
+}
+
+/* 内置函数卡片特殊样式 */
+.var-system-function-card[data-builtin="true"] {
+  border-color: var(--var-primary);
+  background: linear-gradient(
+    to bottom,
+    var(--var-primary-alpha),
+    var(--SmartThemeBlurTintColor)
+  );
+}
+
+.var-system-function-card[data-builtin="true"]::before {
+  background: var(--gradient-info);
+  opacity: 0.6;
 }
 
 /* 拖拽中的样式 */
@@ -175,31 +440,50 @@
 }
 
 .var-system-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: bold;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .var-system-badge-active {
-  background: #3498db;
+  background: var(--gradient-primary);
   color: white;
 }
 
+.var-system-badge-active:hover {
+  filter: brightness(1.1);
+  box-shadow: var(--shadow-md);
+}
+
 .var-system-badge-passive {
-  background: #9b59b6;
+  background: var(--gradient-info);
   color: white;
+}
+
+.var-system-badge-passive:hover {
+  filter: brightness(1.1);
+  box-shadow: var(--shadow-md);
 }
 
 .var-system-function-card-body {
   margin-bottom: 0.75rem;
+  overflow: hidden; /* 正文区域隐藏溢出 */
 }
 
 .var-system-function-description {
   color: var(--SmartThemeEmColor);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* 最多显示3行 */
+  -webkit-box-orient: vertical;
 }
 
 .var-system-function-meta {

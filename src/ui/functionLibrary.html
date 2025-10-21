@@ -1,5 +1,39 @@
 <!-- 函数库管理界面 -->
 <div id="var-system-function-library" class="var-system-tab-content">
+  <!-- 搜索和过滤栏 -->
+  <div class="var-system-search-filter-bar">
+    <div class="var-system-search-box">
+      <i class="fa-solid fa-search"></i>
+      <input
+        id="var-system-function-search"
+        type="text"
+        placeholder="搜索函数名称或描述..."
+        class="text_pole"
+      />
+      <button
+        id="var-system-clear-search"
+        class="clear-search-btn"
+        style="display: none"
+        title="清除搜索"
+      >
+        <i class="fa-solid fa-times"></i>
+      </button>
+    </div>
+
+    <select id="var-system-type-filter" class="text_pole" title="按类型过滤">
+      <option value="">所有类型</option>
+      <option value="active">主动函数</option>
+      <option value="passive">被动函数</option>
+    </select>
+
+    <select id="var-system-status-filter" class="text_pole" title="按状态过滤">
+      <option value="">所有状态</option>
+      <option value="enabled">已启用</option>
+      <option value="disabled">已禁用</option>
+      <option value="builtin">内置</option>
+    </select>
+  </div>
+
   <!-- 顶部工具栏 -->
   <div class="var-system-toolbar">
     <div class="var-system-toolbar-left">
@@ -7,11 +41,11 @@
         <i class="fa-solid fa-plus"></i>
         <span>新增函数</span>
       </button>
-      <button id="var-system-import-functions-btn" class="menu_button">
+      <button id="var-system-import-functions-btn" class="menu_button" title="导入函数到当前作用域">
         <i class="fa-solid fa-file-import"></i>
         <span>导入</span>
       </button>
-      <button id="var-system-export-functions-btn" class="menu_button">
+      <button id="var-system-export-functions-btn" class="menu_button" title="导出当前作用域中已启用的非内置函数">
         <i class="fa-solid fa-file-export"></i>
         <span>导出</span>
       </button>

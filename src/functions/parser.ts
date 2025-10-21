@@ -28,8 +28,8 @@ export function parseFunctionCalls(text, activeFunctions) {
     }
 
     try {
-      // 创建正则表达式
-      const regex = new RegExp(func.pattern, "g");
+      // 使用预编译的正则表达式（性能优化）
+      const regex = func._compiledRegex || new RegExp(func.pattern, "g");
 
       // 查找所有匹配
       while (true) {

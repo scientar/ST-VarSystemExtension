@@ -59,6 +59,14 @@ export class FunctionRegistry {
 
     for (const func of functions) {
       if (this.validateFunction(func)) {
+        // 性能优化：预编译主动函数的正则表达式
+        if (func.type === 'active' && func.pattern && !func._compiledRegex) {
+          try {
+            func._compiledRegex = new RegExp(func.pattern, 'g');
+          } catch (e) {
+            warn(`${EXTENSION_LOG_PREFIX} 预编译正则失败:`, func.name, e);
+          }
+        }
         this.globalFunctions.set(func.id, func);
       } else {
         warn(`${EXTENSION_LOG_PREFIX} 跳过无效的全局函数:`, func);
@@ -84,6 +92,14 @@ export class FunctionRegistry {
 
     for (const func of functions) {
       if (this.validateFunction(func)) {
+        // 性能优化：预编译主动函数的正则表达式
+        if (func.type === 'active' && func.pattern && !func._compiledRegex) {
+          try {
+            func._compiledRegex = new RegExp(func.pattern, 'g');
+          } catch (e) {
+            warn(`${EXTENSION_LOG_PREFIX} 预编译正则失败:`, func.name, e);
+          }
+        }
         this.localFunctions.set(func.id, func);
       } else {
         warn(`${EXTENSION_LOG_PREFIX} 跳过无效的本地函数:`, func);
@@ -214,7 +230,8 @@ export class FunctionRegistry {
     // 对每个启用的主动函数执行匹配
     for (const func of activeFunctions) {
       try {
-        const regex = new RegExp(func.pattern, "g");
+        // 使用预编译的正则表达式（性能优化）
+        const regex = func._compiledRegex || new RegExp(func.pattern, "g");
         let match = regex.exec(text);
 
         while (match !== null) {

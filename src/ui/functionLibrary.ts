@@ -18,12 +18,21 @@ import {
 import { saveSettingsDebounced } from "@sillytavern/script";
 import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
 import { functionRegistry } from "../functions/registry";
+import {
+  FunctionSearchFilter,
+  filterFunctionCards,
+  showNoResults,
+  hideNoResults,
+} from "./components/SearchFilter";
 
 const MODULE_NAME = "[ST-VarSystemExtension/FunctionLibrary]";
 const EXTENSION_SETTINGS_KEY = "st_var_system";
 
 // 当前作用域（global 或 local）
 let currentScope = "global";
+
+// 搜索过滤器实例
+let searchFilter = null;
 
 /**
  * 初始化函数库界面
@@ -75,6 +84,38 @@ function bindEventHandlers() {
   $("#var-system-generate-prompt-btn").on("click", async () => {
     await generatePrompt();
   });
+
+  // 初始化搜索过滤器
+  searchFilter = new FunctionSearchFilter((filters) => {
+    handleFilterChange(filters);
+  });
+}
+
+/**
+ * 处理过滤器变化
+ * @param {Object} filters - 过滤条件
+ */
+function handleFilterChange(filters) {
+  const $cards = $(".var-system-function-card");
+  const totalCount = $cards.length;
+
+  if (totalCount === 0) {
+    return;
+  }
+
+  // 应用过滤
+  const { visible, hidden } = filterFunctionCards($cards, filters);
+
+  // 显示/隐藏无结果提示
+  hideNoResults();
+  if (visible === 0 && hidden > 0) {
+    showNoResults();
+  }
+
+  // 显示搜索结果信息
+  if (searchFilter) {
+    searchFilter.showResultsInfo(totalCount, visible);
+  }
 }
 
 /**
@@ -115,11 +156,16 @@ async function loadFunctionList() {
 
   if (!functions || functions.length === 0) {
     // 显示空状态
+    const scopeText = currentScope === "global" ? "全局" : "局域";
     listContainer.html(`
       <div class="var-system-empty-state">
         <i class="fa-solid fa-inbox fa-3x"></i>
-        <p>暂无函数</p>
-        <p class="var-system-hint">点击"新增函数"创建你的第一个函数</p>
+        <p>暂无${scopeText}函数</p>
+        <p class="var-system-hint">点击下方按钮创建你的第一个${scopeText}函数</p>
+        <button class="menu_button" onclick="$('#var-system-new-function-btn').click()">
+          <i class="fa-solid fa-plus"></i>
+          <span>立即创建</span>
+        </button>
       </div>
     `);
     return;
@@ -211,6 +257,8 @@ function createFunctionCard(func) {
   const $card = $(template);
 
   $card.attr("data-function-id", func.id);
+  $card.attr("data-function-type", func.type);
+  $card.attr("data-builtin", func.builtin || false);
 
   // 设置启用状态
   $card.find(".function-enabled-checkbox").prop("checked", func.enabled);
@@ -255,10 +303,14 @@ function createFunctionCard(func) {
     await openFunctionEditor(func);
   });
 
-  // 删除按钮
-  $card.find(".function-delete-btn").on("click", async () => {
-    await deleteFunction(func);
-  });
+  // 删除按钮（内置函数不显示）
+  if (!func.builtin) {
+    $card.find(".function-delete-btn").on("click", async () => {
+      await deleteFunction(func);
+    });
+  } else {
+    $card.find(".function-delete-btn").hide();
+  }
 
   return $card;
 }
@@ -280,6 +332,23 @@ async function openFunctionEditor(func = null) {
     $editor.find("#function-pattern-input").val(func.pattern || "");
     $editor.find("#function-timing-select").val(func.timing || "before_active");
     $editor.find("#function-executor-textarea").val(func.executor || "");
+
+    // 内置函数保护：设为只读
+    if (func.builtin) {
+      // 所有字段只读，除了启用状态
+      $editor.find("input:not(#function-enabled-checkbox), select, textarea")
+        .prop("readonly", true)
+        .prop("disabled", true)
+        .css("background-color", "#f5f5f5");  // 视觉提示
+
+      // 添加提示文本
+      $editor.prepend(`
+        <div class="var-system-hint" style="background: #fff3cd; padding: 10px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+          <i class="fa-solid fa-info-circle"></i>
+          <strong>这是内置函数</strong>，只能查看实现和控制启用状态，不能修改其他内容。
+        </div>
+      `);
+    }
   }
 
   // 类型切换时显示/隐藏相应字段
@@ -301,12 +370,17 @@ async function openFunctionEditor(func = null) {
   const result = await callGenericPopup(
     $editor,
     POPUP_TYPE.CONFIRM,
-    func ? "编辑函数" : "新增函数",
+    func?.builtin ? "查看内置函数" : (func ? "编辑函数" : "新增函数"),
     {
-      okButton: "保存",
-      cancelButton: "取消",
+      okButton: func?.builtin ? "关闭" : "保存",
+      cancelButton: func?.builtin ? null : "取消",
     },
   );
+
+  // 内置函数点击"关闭"后直接返回，不保存
+  if (func?.builtin) {
+    return;
+  }
 
   if (result !== POPUP_RESULT.AFFIRMATIVE) {
     return;
@@ -480,7 +554,7 @@ async function importFunctions() {
       await saveFunctions();
       await loadFunctionList();
 
-      toastr.success(`成功导入 ${imported} 个函数`);
+      toastr.success(`成功导入 ${imported} 个函数到${currentScope === 'global' ? '全局函数库' : '当前角色的局域函数'}`);
     } catch (error) {
       console.error(MODULE_NAME, "导入函数失败:", error);
       toastr.error(`导入失败：${error.message}`);
@@ -492,21 +566,35 @@ async function importFunctions() {
 
 /**
  * 导出函数
+ * 只导出当前作用域中已启用的非内置函数
  */
 async function exportFunctions() {
-  const functions =
+  // 获取当前 scope 的所有函数
+  const allFunctions =
     currentScope === "global"
       ? functionRegistry.exportGlobalFunctions()
       : functionRegistry.exportLocalFunctions();
 
-  if (!functions || functions.length === 0) {
-    toastr.warning("没有可导出的函数");
+  // 只导出启用的、非内置的函数
+  const functionsToExport = allFunctions.filter(func =>
+    func.enabled && !func.builtin
+  );
+
+  if (functionsToExport.length === 0) {
+    toastr.warning(`当前${currentScope === 'global' ? '全局' : '局域'}作用域没有已启用的非内置函数可导出`);
     return;
   }
 
+  // 移除运行时字段（如预编译的正则表达式）
+  const cleanedFunctions = functionsToExport.map(func => {
+    const { _compiledRegex, ...cleanFunc } = func;
+    return cleanFunc;
+  });
+
   const exportData = {
     version: "1.0",
-    functions: functions,
+    scope: currentScope,  // 标记来源
+    functions: cleanedFunctions,
   };
 
   const json = JSON.stringify(exportData, null, 2);
@@ -523,7 +611,7 @@ async function exportFunctions() {
 
   URL.revokeObjectURL(url);
 
-  toastr.success("函数库已导出");
+  toastr.success(`已导出 ${functionsToExport.length} 个${currentScope === 'global' ? '全局' : '局域'}函数`);
 }
 
 /**

@@ -86,6 +86,13 @@ async function handleMessageReceived(messageId) {
 
   if (!isVariableSystemEnabled()) {
     console.log(MODULE_NAME, "变量系统未启用，跳过处理");
+    // 刷新楼层快照列表以显示当前状态
+    try {
+      const { loadFloorList } = await import('../ui/messageSnapshots.js');
+      await loadFloorList();
+    } catch (e) {
+      console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+    }
     return;
   }
 
@@ -120,6 +127,13 @@ async function handleMessageSwiped(messageId) {
 
   if (!isVariableSystemEnabled()) {
     console.log(MODULE_NAME, "变量系统未启用，跳过处理");
+    // 刷新楼层快照列表以显示当前状态
+    try {
+      const { loadFloorList } = await import('../ui/messageSnapshots.js');
+      await loadFloorList();
+    } catch (e) {
+      console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+    }
     return;
   }
 
@@ -165,6 +179,13 @@ async function handleChatChanged(chatFileName) {
   try {
     if (!isVariableSystemEnabled()) {
       console.log(MODULE_NAME, "新角色未启用变量系统");
+      // 刷新楼层快照列表以显示当前状态
+      try {
+        const { loadFloorList } = await import('../ui/messageSnapshots.js');
+        await loadFloorList();
+      } catch (e) {
+        console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+      }
       return;
     }
 
@@ -217,6 +238,13 @@ async function handleMessageDeleted(deletedMessageId) {
 
   if (!isVariableSystemEnabled()) {
     console.log(MODULE_NAME, "变量系统未启用，跳过处理");
+    // 刷新楼层快照列表以显示当前状态
+    try {
+      const { loadFloorList } = await import('../ui/messageSnapshots.js');
+      await loadFloorList();
+    } catch (e) {
+      console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+    }
     return;
   }
 

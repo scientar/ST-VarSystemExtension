@@ -25,6 +25,7 @@ import {
   getAIMessageRange,
 } from "../snapshots/snapshotResolver";
 import { injectSnapshotVariables } from "./variableInjector";
+import { addStatusPlaceholder } from "./statusPlaceholder";
 
 const MODULE_NAME = "[ST-VarSystemExtension/processor]";
 
@@ -308,6 +309,11 @@ export async function processMessage(targetMessageId, swipeId = null) {
   await injectSnapshotVariables(currentSnapshot);
 
   console.log(MODULE_NAME, "处理完成，已注入快照变量");
+
+  // 9. 在 AI 消息尾部添加状态栏占位符
+  // 确保在变量注入完成后添加，这样正则替换时 vs_stat_data 已是最新值
+  await addStatusPlaceholder(targetMessageId);
+
   return currentSnapshot;
 }
 
