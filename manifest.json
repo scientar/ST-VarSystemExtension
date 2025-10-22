@@ -6,7 +6,7 @@
   "js": "dist/index.js",
   "css": "dist/index.css",
   "author": "scientar",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "homePage": "https://github.com/scientar/ST-VarSystemExtension",
   "auto_update": true
 }

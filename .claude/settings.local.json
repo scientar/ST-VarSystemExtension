@@ -10,7 +10,13 @@
       "Bash(dir:*)",
       "Read(//c/things/SillytavernVariableSystem/ST-VarSystemPlugin/**)",
       "Read(//c/things/SillytavernVariableSystem/SillyTavern/public/scripts/extensions/third-party/ST-VarSystemExtension/src/ui/**)",
-      "Read(//c/things/SillytavernVariableSystem/ST-VarSystemExtension/src/ui/**)"
+      "Read(//c/things/SillytavernVariableSystem/ST-VarSystemExtension/src/ui/**)",
+      "Read(//c/things/SillytavernVariableSystem/SillyTavern/public/scripts/extensions/third-party/JS-Slash-Runner/**)",
+      "Bash(findstr:*)",
+      "Read(//c/things/SillytavernVariableSystem/SillyTavern/public/scripts/**)",
+      "Bash(for file in \"c:\\things\\SillytavernVariableSystem\\SillyTavern\\public\\scripts\\extensions\\third-party\\ST-VarSystemExtension\\dist\"/*.chunk.js)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

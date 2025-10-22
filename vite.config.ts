@@ -19,6 +19,9 @@ const externals = {
 // 到 public/ 的相对路径：../../../../..（向上 5 层）
 const relative_sillytavern_path = '../../../../..';
 
+// 到 lib/ 的相对路径（从 dist/ 到 lib/）
+const relative_lib_path = path.relative(path.join(__dirname, 'dist'), path.join(__dirname, 'lib'));
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     vue({
@@ -55,6 +58,18 @@ export default defineConfig(({ mode }) => ({
         if (id.startsWith('@sillytavern/')) {
           return {
             id: path.join(relative_sillytavern_path, id.replace('@sillytavern/', '')).replaceAll('\\', '/') + '.js',
+            external: true,
+          };
+        }
+      },
+    },
+    {
+      name: 'jsoneditor_resolver',
+      enforce: 'pre',
+      resolveId(id) {
+        if (id === 'vanilla-jsoneditor') {
+          return {
+            id: path.join(relative_lib_path, 'jsoneditor.js').replaceAll('\\', '/'),
             external: true,
           };
         }

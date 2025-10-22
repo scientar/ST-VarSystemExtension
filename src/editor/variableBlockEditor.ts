@@ -1,7 +1,7 @@
 import { destr, safeDestr } from "destr";
 import { debounce } from "lodash";
 import { createJSONEditor, type Mode } from "vanilla-jsoneditor";
-import "vanilla-jsoneditor/themes/jse-theme-dark.css";
+import "./variableBlockEditor.css";
 import type {
   EditorContent,
   EditorMetadata,
