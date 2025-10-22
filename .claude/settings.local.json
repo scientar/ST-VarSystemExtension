@@ -6,7 +6,11 @@
       "Bash(cat:*)",
       "Bash(pnpm list:*)",
       "Read(//c/things/SillytavernVariableSystem/svelte-jsoneditor/src/lib/**)",
-      "Read(//c/things/SillytavernVariableSystem/svelte-jsoneditor/**)"
+      "Read(//c/things/SillytavernVariableSystem/svelte-jsoneditor/**)",
+      "Bash(dir:*)",
+      "Read(//c/things/SillytavernVariableSystem/ST-VarSystemPlugin/**)",
+      "Read(//c/things/SillytavernVariableSystem/SillyTavern/public/scripts/extensions/third-party/ST-VarSystemExtension/src/ui/**)",
+      "Read(//c/things/SillytavernVariableSystem/ST-VarSystemExtension/src/ui/**)"
     ],
     "deny": [],
     "ask": []

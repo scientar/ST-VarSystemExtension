@@ -10,20 +10,28 @@
  * 编辑器复用：VariableBlockEditor（与角色模板/全局快照相同）
  */
 
+import { getRequestHeaders } from "@sillytavern/script";
 import { getContext } from "@sillytavern/scripts/extensions";
 import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
-import { getRequestHeaders, eventSource, event_types } from "@sillytavern/script";
 import { createVariableBlockEditor } from "../editor/variableBlockEditor";
+import type { VariableBlockEditorInstance } from "../editor/variableBlockEditor.types";
 
 const MODULE_NAME = "[ST-VarSystemExtension/MessageSnapshots]";
 
 // JSON 编辑器资源 URL
 
 // 编辑器实例
-let editorController = null;
+let editorController: VariableBlockEditorInstance | null = null;
 
 // 当前状态
-const snapshotState = {
+const snapshotState: {
+  currentFloor: number | null;
+  currentSwipeId: number | null;
+  currentSnapshotId: string | null;
+  draftBody: unknown | null;
+  dirty: boolean;
+  hasErrors: boolean;
+} = {
   currentFloor: null, // 当前选中的楼层号
   currentSwipeId: null, // 当前 swipe ID
   currentSnapshotId: null, // 当前快照 ID
@@ -51,7 +59,7 @@ export async function initMessageSnapshots() {
 function bindEventHandlers() {
   // 楼层选择
   $("#var-system-floor-select").on("change", async (e) => {
-    const floorNumber = parseInt(e.target.value, 10);
+    const floorNumber = parseInt((e.target as HTMLSelectElement).value, 10);
     if (!Number.isNaN(floorNumber)) {
       await loadFloorSnapshot(floorNumber);
     }
@@ -59,7 +67,7 @@ function bindEventHandlers() {
 
   // 跳转按钮
   $("#var-system-jump-btn").on("click", async () => {
-    const floorNumber = parseInt($("#var-system-jump-input").val(), 10);
+    const floorNumber = parseInt(($("#var-system-jump-input").val() as string) || "", 10);
     if (Number.isNaN(floorNumber)) {
       toastr.error("请输入有效的层号");
       return;
@@ -166,7 +174,7 @@ export async function loadFloorList() {
  * @param {number} floorNumber - 楼层号
  * @returns {Promise<boolean>}
  */
-async function checkFloorHasSnapshot(floorNumber) {
+async function checkFloorHasSnapshot(floorNumber: number): Promise<boolean> {
   const context = getContext();
   const chat = context.chat;
 
@@ -189,7 +197,7 @@ async function checkFloorHasSnapshot(floorNumber) {
  * 加载指定楼层的快照
  * @param {number} floorNumber - 楼层号
  */
-async function loadFloorSnapshot(floorNumber) {
+async function loadFloorSnapshot(floorNumber: number): Promise<void> {
   const context = getContext();
   const chat = context.chat;
 
@@ -247,7 +255,7 @@ async function loadFloorSnapshot(floorNumber) {
  * @param {string} snapshotId - 快照 ID
  * @returns {Promise<Object|null>}
  */
-async function fetchSnapshotFromPlugin(snapshotId) {
+async function fetchSnapshotFromPlugin(snapshotId: string): Promise<unknown | null> {
   try {
     const response = await fetch(
       `/api/plugins/var-manager/var-manager/snapshots/${snapshotId}`,
@@ -274,7 +282,7 @@ async function fetchSnapshotFromPlugin(snapshotId) {
 
     const data = await response.json();
     return data.payload;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(MODULE_NAME, "从插件读取快照时发生错误:", error);
     return null;
   }
@@ -284,10 +292,15 @@ async function fetchSnapshotFromPlugin(snapshotId) {
  * 初始化编辑器
  * @param {Object} snapshot - 快照对象
  */
-async function initializeEditor(snapshot) {
+async function initializeEditor(snapshot: unknown): Promise<void> {
   const container = document.getElementById(
     "var-system-snapshot-editor-container",
   );
+
+  if (!container) {
+    console.error(MODULE_NAME, "找不到编辑器容器");
+    return;
+  }
 
   // 移除空状态
   $(container).find(".var-system-empty-state").remove();
@@ -301,11 +314,10 @@ async function initializeEditor(snapshot) {
   // 创建新编辑器（【修复】传入 options 对象并包含 onChange 回调）
   editorController = createVariableBlockEditor({
     container,
-    
-    
+
     onChange: (content, _previousContent, metadata) => {
       // 【调试】记录编辑器变化
-      console.log('[MessageSnapshots] Editor change:', {
+      console.log("[MessageSnapshots] Editor change:", {
         hasContent: !!content,
         hasJson: content?.json !== undefined,
         jsonType: typeof content?.json,
@@ -322,14 +334,14 @@ async function initializeEditor(snapshot) {
 
       // 只要 JSON 解析成功就更新 draftBody
       if (!hasErrors) {
-        snapshotState.draftBody = content.json;
+        snapshotState.draftBody = content.json as unknown;
       }
 
       // 更新保存按钮状态
       $("#var-system-save-snapshot-btn").prop("disabled", hasErrors);
     },
     onFallback: () => {
-      console.warn(MODULE_NAME, 'JSON 编辑器资源加载失败，已降级为纯文本模式');
+      console.warn(MODULE_NAME, "JSON 编辑器资源加载失败，已降级为纯文本模式");
     },
   });
 
@@ -352,6 +364,11 @@ async function saveSnapshot() {
   }
 
   try {
+    if (!editorController) {
+      toastr.error("编辑器未初始化");
+      return;
+    }
+
     const content = editorController.get();
 
     // 【新增】验证 JSON 是否解析成功
@@ -360,16 +377,29 @@ async function saveSnapshot() {
       return;
     }
 
-    // 调用插件更新快照（【修复】添加 CSRF headers，只发送 json 数据）
+    // 获取当前聊天文件名
+    const context = getContext();
+    const chatFile = context.getCurrentChatId?.() || context.chatId;
+
+    if (!chatFile) {
+      toastr.error("无法获取当前聊天文件名");
+      return;
+    }
+
+    // 调用插件更新快照（使用 POST 方法的 UPSERT 模式）
     const response = await fetch(
-      `/api/plugins/var-manager/var-manager/snapshots/${snapshotState.currentSnapshotId}`,
+      `/api/plugins/var-manager/var-manager/snapshots`,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           ...getRequestHeaders(),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ snapshot: content.json }),
+        body: JSON.stringify({
+          identifier: snapshotState.currentSnapshotId,
+          chatFile: chatFile,
+          payload: content.json,
+        }),
       },
     );
 
@@ -384,9 +414,10 @@ async function saveSnapshot() {
 
     // 重新执行处理流程（更新聊天变量）
     // TODO: 调用 reprocessFromMessage(snapshotState.currentFloor)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(MODULE_NAME, "保存快照失败:", error);
-    toastr.error(`保存失败：${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    toastr.error(`保存失败：${errorMessage}`);
   }
 }
 
@@ -394,6 +425,11 @@ async function saveSnapshot() {
  * 保存为全局快照
  */
 async function saveAsGlobalSnapshot() {
+  if (!editorController) {
+    toastr.error("编辑器未初始化");
+    return;
+  }
+
   const content = editorController.get();
 
   // 【新增】验证 JSON 是否解析成功
@@ -414,10 +450,12 @@ async function saveAsGlobalSnapshot() {
     return;
   }
 
-  const tagArray = tags
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t);
+  const tagArray = typeof tags === "string"
+    ? tags
+        .split(",")
+        .map((t: string) => t.trim())
+        .filter((t: string) => t)
+    : [];
 
   try {
     // 调用全局快照 API（【修复】添加 CSRF headers，只发送 json 数据）
@@ -441,9 +479,10 @@ async function saveAsGlobalSnapshot() {
     }
 
     toastr.success("已保存为全局快照");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(MODULE_NAME, "保存全局快照失败:", error);
-    toastr.error(`保存失败：${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    toastr.error(`保存失败：${errorMessage}`);
   }
 }
 
@@ -451,6 +490,11 @@ async function saveAsGlobalSnapshot() {
  * 导出快照
  */
 async function exportSnapshot() {
+  if (!editorController) {
+    toastr.error("编辑器未初始化");
+    return;
+  }
+
   const snapshot = editorController.get();
 
   const json = JSON.stringify(snapshot, null, 2);
@@ -479,11 +523,11 @@ async function importSnapshot() {
   $input.attr("type", "file");
   $input.attr("accept", ".json");
 
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     $input.on("change", async (e) => {
-      const file = e.target.files?.[0];
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) {
-        resolve();
+        resolve(undefined);
         return;
       }
 
@@ -492,17 +536,18 @@ async function importSnapshot() {
         const snapshot = JSON.parse(text);
 
         // 更新编辑器
-        editorController.set(snapshot);
+        editorController?.set(snapshot);
         snapshotState.draftBody = snapshot;
         snapshotState.dirty = true;
         $("#var-system-save-snapshot-btn").prop("disabled", false);
 
         toastr.success("快照已导入（未保存）");
-        resolve();
-      } catch (error) {
+        resolve(undefined);
+      } catch (error: unknown) {
         console.error(MODULE_NAME, "导入快照失败:", error);
-        toastr.error(`导入失败：${error.message}`);
-        resolve();
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toastr.error(`导入失败：${errorMessage}`);
+        resolve(undefined);
       }
     });
 
@@ -526,15 +571,16 @@ async function stripSchemaFromMessageSnapshot() {
     const stripped = stripMvuMetadata(snapshot);
 
     // 更新编辑器
-    editorController.set(stripped);
+    editorController.set({ json: stripped });
     snapshotState.draftBody = stripped;
     snapshotState.dirty = true;
     $("#var-system-save-snapshot-btn").prop("disabled", false);
 
     toastr.success("已移除 MVU Schema 字段");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(MODULE_NAME, "分离 Schema 失败:", error);
-    toastr.error(`分离 Schema 失败：${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    toastr.error(`分离 Schema 失败：${errorMessage}`);
   }
 }
 
@@ -543,17 +589,17 @@ async function stripSchemaFromMessageSnapshot() {
  * @param {any} obj - 待处理的对象
  * @returns {any} 清理后的对象
  */
-function stripMvuMetadata(obj) {
+function stripMvuMetadata(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     return obj
-      .filter((item) => item !== "$__META_EXTENSIBLE__$")
-      .map((item) => stripMvuMetadata(item));
+      .filter((item: unknown) => item !== "$__META_EXTENSIBLE__$")
+      .map((item: unknown) => stripMvuMetadata(item));
   } else if (_.isObject(obj) && !_.isDate(obj)) {
-    const result = {};
+    const result: Record<string, unknown> = {};
     for (const key in obj) {
       // 移除所有以 $ 开头的字段
-      if (!key.startsWith('$')) {
-        result[key] = stripMvuMetadata(obj[key]);
+      if (!key.startsWith("$")) {
+        result[key] = stripMvuMetadata((obj as Record<string, unknown>)[key]);
       }
     }
     return result;
