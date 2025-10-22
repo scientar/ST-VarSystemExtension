@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/things/SillytavernVariableSystem/JS-Slash-Runner/**)",
+      "Bash(pnpm run build:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm list:*)",
+      "Read(//c/things/SillytavernVariableSystem/svelte-jsoneditor/src/lib/**)",
+      "Read(//c/things/SillytavernVariableSystem/svelte-jsoneditor/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
