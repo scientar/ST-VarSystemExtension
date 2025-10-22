@@ -32,7 +32,7 @@
 
 **步骤 2**: 配置正则替换规则
 
-```
+```regex
 脚本名称: 变量系统状态栏
 查找模式: <VarSystemStatusPlaceholder/>
 替换为:
@@ -50,7 +50,7 @@
 ### 进阶示例：带样式的状态栏
 
 ```html
-<VarSystemStatusPlaceholder/>
+<VarSystemStatusPlaceholder />
 ```
 
 替换为：
@@ -63,7 +63,7 @@
     padding: 12px;
     border-radius: 8px;
     margin-top: 10px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   }
   .vs-status-grid {
     display: grid;
@@ -89,11 +89,15 @@
   <div class="vs-status-grid">
     <div class="vs-status-item">
       <div class="vs-status-label">生命值</div>
-      <div class="vs-status-value">{{vs_stat_data.hp}}/{{vs_stat_data.max_hp}}</div>
+      <div class="vs-status-value">
+        {{vs_stat_data.hp}}/{{vs_stat_data.max_hp}}
+      </div>
     </div>
     <div class="vs-status-item">
       <div class="vs-status-label">魔力值</div>
-      <div class="vs-status-value">{{vs_stat_data.mp}}/{{vs_stat_data.max_mp}}</div>
+      <div class="vs-status-value">
+        {{vs_stat_data.mp}}/{{vs_stat_data.max_mp}}
+      </div>
     </div>
     <div class="vs-status-item">
       <div class="vs-status-label">当前位置</div>
@@ -111,12 +115,8 @@
 <div class="vs-status-bar">
   {{#if vs_stat_data.hp}}
   <div class="status-item">HP: {{vs_stat_data.hp}}/{{vs_stat_data.max_hp}}</div>
-  {{/if}}
-
-  {{#if vs_stat_data.status_effects}}
-  <div class="status-effects">
-    状态: {{vs_stat_data.status_effects}}
-  </div>
+  {{/if}} {{#if vs_stat_data.status_effects}}
+  <div class="status-effects">状态: {{vs_stat_data.status_effects}}</div>
   {{/if}}
 </div>
 ```
@@ -164,6 +164,7 @@
 ### Q: 占位符出现在消息中间而不是尾部？
 
 这是正常的，因为：
+
 1. 占位符添加到**消息字符串尾部**
 2. 如果 AI 输出中已经有其他占位符（如 MVU 的），占位符会在它们之前
 3. 可以通过调整正则脚本的**优先级**来控制替换顺序
@@ -177,6 +178,7 @@
 ### Q: 占位符会影响 AI 生成吗？
 
 不会。占位符在 **AI 生成完成后** 才添加，因此：
+
 - ✅ 不会被发送到 AI
 - ✅ 不会影响上下文
 - ✅ 不会消耗 token
@@ -184,10 +186,12 @@
 ### Q: 如何在多个角色间共享状态栏样式？
 
 **方法 1**: 全局正则脚本
+
 - 在设置 → Chat/Message Regex 中创建全局脚本
 - 所有角色都会应用
 
 **方法 2**: 导出/导入正则脚本
+
 - 设置 → Chat/Message Regex → Export
 - 在其他酒馆实例中 Import
 
@@ -196,6 +200,7 @@
 会。占位符是消息内容的一部分，会被保存到聊天文件（`*.jsonl`）。
 
 但这不影响：
+
 - ✅ 切换角色
 - ✅ 导出聊天
 - ✅ 分享聊天
@@ -206,7 +211,7 @@
 
 如果不想显示占位符标签，可以在正则脚本中替换为空字符串：
 
-```
+```regex
 查找: <VarSystemStatusPlaceholder/>
 替换为: (留空)
 运行时机: Display
@@ -222,16 +227,6 @@
   }
 </style>
 ```
-
-## 与社区方案对比
-
-| 方案 | 占位符 | 变量名 | 使用场景 |
-|------|--------|--------|----------|
-| **MVU** | `<StatusPlaceHolderImpl/>` | `stat_data` | 变量更新系统，支持 AI 主动修改变量 |
-| **SAM** | `$` | `SAM_data` | 简单状态栏，专注于显示 |
-| **本系统** | `<VarSystemStatusPlaceholder/>` | `vs_stat_data` | 快照系统，支持函数调用和时间旅行 |
-
-**兼容性**：三者可以共存使用，互不冲突。
 
 ## 最佳实践
 
@@ -276,6 +271,7 @@
 ### 4. 测试兼容性
 
 在不同主题下测试状态栏显示效果：
+
 - 默认主题
 - 暗色主题
 - 自定义主题
