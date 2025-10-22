@@ -14,6 +14,7 @@
  * @module events/processor
  */
 
+import { getContext } from "@sillytavern/scripts/extensions";
 import { executeFunctionPipeline } from "../functions/executor";
 import { functionRegistry } from "../functions/registry";
 import {
@@ -36,7 +37,7 @@ const MODULE_NAME = "[ST-VarSystemExtension/processor]";
  */
 function getCharacterTemplate() {
   try {
-    const context = window.SillyTavern.getContext();
+    const context = getContext();
     const character = context.characters[context.characterId];
 
     if (!character?.data?.extensions?.st_var_system) {
@@ -111,7 +112,7 @@ async function fetchSnapshotFromPlugin(snapshotId) {
  */
 async function checkExistingSnapshot(messageId, swipeId = null) {
   // 获取消息对象
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const chat = context.chat;
 
   if (!chat || messageId >= chat.length) {
@@ -175,7 +176,7 @@ export async function processMessage(targetMessageId, swipeId = null) {
   );
 
   // 获取聊天上下文
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const chat = context.chat;
 
   if (!chat || chat.length === 0) {
@@ -329,7 +330,7 @@ export async function processMessage(targetMessageId, swipeId = null) {
  * @returns {Promise<void>}
  */
 export async function reprocessFromMessage(fromMessageId) {
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const chat = context.chat;
 
   if (!chat || chat.length === 0) {

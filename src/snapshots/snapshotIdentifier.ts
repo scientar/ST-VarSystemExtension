@@ -4,6 +4,7 @@
  */
 
 import { getRequestHeaders } from "@sillytavern/script";
+import { getContext } from "@sillytavern/scripts/extensions";
 import { getCurrentSwipeId } from "./messageUtils";
 
 const SNAPSHOT_ID_KEY = "st_var_system_snapshot_id";
@@ -212,7 +213,7 @@ export async function saveSnapshot(params) {
 export async function saveSnapshotToPlugin(messageId, swipeId, snapshot) {
   try {
     // 1. 获取上下文和聊天文件名
-    const context = window.SillyTavern.getContext();
+    const context = getContext();
     const chatFile = context.getCurrentChatId?.() || context.chatId;
 
     if (!chatFile) {

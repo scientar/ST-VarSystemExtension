@@ -12,6 +12,7 @@ import "@/ui/design-system.scss";
 import {
   renderExtensionTemplateAsync,
   writeExtensionField,
+  getContext,
 } from "@sillytavern/scripts/extensions";
 import { event_types, eventSource, getRequestHeaders } from "@sillytavern/script";
 import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
@@ -287,7 +288,7 @@ async function discardTemplateChanges() {
 }
 
 async function refreshTemplateForActiveCharacter(force = false) {
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const activeCharacterId = context.characterId;
 
   if (activeCharacterId == null) {
@@ -354,7 +355,7 @@ async function refreshTemplateForActiveCharacter(force = false) {
 }
 
 async function setEnabledForActiveCharacter(nextEnabled) {
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const characterId = context.characterId;
 
   if (characterId == null) {
@@ -409,7 +410,7 @@ async function setEnabledForActiveCharacter(nextEnabled) {
 }
 
 async function clearTemplateForActiveCharacter() {
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const characterId = context.characterId;
 
   if (characterId == null) {
@@ -489,7 +490,7 @@ async function saveCurrentTemplate() {
     return;
   }
 
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const characterId = context.characterId;
 
   if (characterId == null) {
@@ -528,7 +529,7 @@ async function saveCurrentTemplate() {
  * 将当前角色模板保存为全局快照
  */
 async function saveTemplateAsGlobalSnapshot() {
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   if (!context.characterId) {
     await callGenericPopup("请先选择一个角色", POPUP_TYPE.TEXT, "", {
       okButton: "确定",
@@ -646,7 +647,7 @@ async function exportTemplate() {
     return;
   }
 
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   const character = context.characters?.[context.characterId];
   const characterName = character?.name || 'unknown';
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -1405,7 +1406,7 @@ function updateSnapshotsListUI(message) {
  * 将快照应用到当前角色
  */
 async function loadSnapshotToCharacter(snapshotId) {
-  const context = window.SillyTavern.getContext();
+  const context = getContext();
   if (!context.characterId) {
     await callGenericPopup("请先选择一个角色", POPUP_TYPE.TEXT, "", {
       okButton: "确定",

@@ -15,8 +15,25 @@ import { getContext } from "@sillytavern/scripts/extensions";
 import { callGenericPopup, POPUP_TYPE } from "@sillytavern/scripts/popup";
 import { createVariableBlockEditor } from "../editor/variableBlockEditor";
 import type { VariableBlockEditorInstance } from "../editor/variableBlockEditor.types";
+import { processMessage } from "../events/processor";
 
 const MODULE_NAME = "[ST-VarSystemExtension/MessageSnapshots]";
+
+/**
+ * 检查变量系统是否启用
+ * @returns {boolean} 当前角色是否启用变量系统
+ */
+function isVariableSystemEnabled(): boolean {
+  try {
+    const context = getContext();
+    const character = context.characters?.[context.characterId];
+
+    return character?.data?.extensions?.st_var_system?.enabled === true;
+  } catch (error) {
+    console.error(MODULE_NAME, "检查启用状态时发生错误:", error);
+    return false;
+  }
+}
 
 // JSON 编辑器资源 URL
 
@@ -413,7 +430,35 @@ async function saveSnapshot() {
     toastr.success("快照已保存");
 
     // 重新执行处理流程（更新聊天变量）
-    // TODO: 调用 reprocessFromMessage(snapshotState.currentFloor)
+    try {
+      if (!isVariableSystemEnabled()) {
+        console.log(MODULE_NAME, "变量系统未启用，仅刷新列表");
+        await loadFloorList();
+        return;
+      }
+
+      const context = getContext();
+      const chat = context.chat;
+
+      if (!chat || chat.length === 0) {
+        console.log(MODULE_NAME, "当前无聊天记录");
+        await loadFloorList();
+        return;
+      }
+
+      // 查找最后一条 AI 消息并处理
+      for (let i = chat.length - 1; i >= 0; i--) {
+        const message = chat[i];
+        if (message.is_user === false || message.role === "assistant") {
+          console.log(MODULE_NAME, `重新处理最后一条 AI 消息: #${i}`);
+          await processMessage(i);
+          await loadFloorList();
+          break;
+        }
+      }
+    } catch (error) {
+      console.error(MODULE_NAME, "处理流程执行失败:", error);
+    }
   } catch (error: unknown) {
     console.error(MODULE_NAME, "保存快照失败:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);

@@ -23,6 +23,7 @@ const MODULE_NAME = "[ST-VarSystemExtension/listeners]";
 // 从 SillyTavern 导入事件类型和相关 API
 // 使用绝对路径（从网站根目录开始）避免沙箱环境下的路径问题
 import { saveChat, eventSource, event_types } from '@sillytavern/script';
+import { getContext } from '@sillytavern/scripts/extensions';
 
 // CSRF Token 缓存
 let cachedCsrfToken = null;
@@ -63,7 +64,7 @@ async function getCsrfToken() {
  */
 function isVariableSystemEnabled() {
   try {
-    const context = window.SillyTavern.getContext();
+    const context = getContext();
     const character = context.characters?.[context.characterId];
 
     return character?.data?.extensions?.st_var_system?.enabled === true;
@@ -138,7 +139,7 @@ async function handleMessageSwiped(messageId) {
   }
 
   try {
-    const context = window.SillyTavern.getContext();
+    const context = getContext();
     const message = context.chat[messageId];
     const swipeId = message?.swipe_id ?? null;
 
@@ -190,7 +191,7 @@ async function handleChatChanged(chatFileName) {
     }
 
     // 如果当前聊天有消息，重新处理最后一条 AI 消息
-    const context = window.SillyTavern.getContext();
+    const context = getContext();
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
@@ -249,7 +250,7 @@ async function handleMessageDeleted(deletedMessageId) {
   }
 
   try {
-    const context = window.SillyTavern.getContext();
+    const context = getContext();
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
