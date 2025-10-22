@@ -16,7 +16,8 @@
       "Read(//c/things/SillytavernVariableSystem/SillyTavern/public/scripts/**)",
       "Bash(for file in \"c:\\things\\SillytavernVariableSystem\\SillyTavern\\public\\scripts\\extensions\\third-party\\ST-VarSystemExtension\\dist\"/*.chunk.js)",
       "Bash(do echo \"=== $file ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(md5sum:*)"
     ],
     "deny": [],
     "ask": []
