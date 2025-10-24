@@ -1,8 +1,8 @@
 node_modules
-
+.claude
 .DS_Store
 Thumbs.db
-
+.serena
 *.log
 
 npm-debug.log*
