@@ -257,7 +257,7 @@ export async function processMessage(targetMessageId, swipeId = null) {
 
     // 解析该层的函数调用
     const content = msg.content || msg.mes || "";
-    const calls = functionRegistry.parseFunctionCalls(content);
+    const calls = await functionRegistry.parseFunctionCalls(content);
 
     if (calls.length > 0) {
       console.log(

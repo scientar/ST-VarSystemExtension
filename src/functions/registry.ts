@@ -227,33 +227,23 @@ export class FunctionRegistry {
    * @param {string} text - AI 消息文本
    * @returns {Array<ParsedFunctionCall>}
    */
-  parseFunctionCalls(text) {
+  async parseFunctionCalls(text) {
     const activeFunctions = this.getActiveFunctions();
-    const allMatches = [];
 
-    // 对每个启用的主动函数执行匹配
-    for (const func of activeFunctions) {
-      try {
-        // 使用预编译的正则表达式（性能优化）
-        const regex = func._compiledRegex || new RegExp(func.pattern, "g");
-        let match = regex.exec(text);
+    // 使用新的解析器（支持 character-parser，正确处理引号和括号）
+    const { parseFunctionCalls: parseWithCharacterParser } = await import(
+      "./parser.js"
+    );
 
-        while (match !== null) {
-          allMatches.push({
-            functionDef: func,
-            args: match.slice(1), // 捕获组作为参数
-            index: match.index,
-            fullMatch: match[0],
-          });
-          match = regex.exec(text);
-        }
-      } catch (e) {
-        error(`${EXTENSION_LOG_PREFIX} 函数 ${func.name} 匹配失败:`, e);
-      }
-    }
+    const calls = parseWithCharacterParser(text, activeFunctions);
 
-    // 按位置排序，保证执行顺序
-    allMatches.sort((a, b) => a.index - b.index);
+    // 转换为原有格式（保持兼容性）
+    const allMatches = calls.map((call) => ({
+      functionDef: this.getFunction(call.functionId),
+      args: call.args,
+      index: call.index,
+      fullMatch: call.raw,
+    }));
 
     log(
       `${EXTENSION_LOG_PREFIX} 从消息中解析到 ${allMatches.length} 个函数调用`,
