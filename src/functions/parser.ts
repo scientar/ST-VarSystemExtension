@@ -34,8 +34,20 @@ export function parseFunctionCalls(text, activeFunctions) {
       // 例如：@.ADD( 或 @.SET(
       const funcNameRegex = new RegExp(`@\\.${func.name}\\s*\\(`, "g");
 
+      // 添加保护：限制单个函数的最大匹配次数，防止意外的无限循环
+      let matchCount = 0;
+      const MAX_MATCHES = 1000;
+
       // 查找所有匹配
       while (true) {
+        matchCount++;
+        if (matchCount > MAX_MATCHES) {
+          console.error(
+            `[ST-VarSystemExtension] 函数 ${func.name} 匹配次数超过 ${MAX_MATCHES}，可能存在解析问题，已中止`,
+          );
+          break;
+        }
+
         const match = funcNameRegex.exec(text);
         if (match === null) {
           break;
@@ -53,8 +65,10 @@ export function parseFunctionCalls(text, activeFunctions) {
 
         if (endIndex === -1) {
           console.warn(
-            `[ST-VarSystemExtension] 无法找到函数 ${func.name} 的结束括号`,
+            `[ST-VarSystemExtension] 无法找到函数 ${func.name} 的结束括号，跳过此匹配`,
           );
+          // 手动推进 lastIndex，避免无限循环导致崩溃
+          funcNameRegex.lastIndex = afterOpenParen;
           continue;
         }
 
