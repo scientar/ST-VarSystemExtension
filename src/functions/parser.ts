@@ -3,6 +3,8 @@
  * 负责从 AI 消息中提取函数调用
  */
 
+import * as characterParser from "character-parser";
+
 /**
  * 从文本中解析函数调用
  * 支持格式: @.FUNCTION_NAME(arg1, arg2, ...);
@@ -23,31 +25,53 @@ export function parseFunctionCalls(text, activeFunctions) {
 
   // 遍历所有启用的主动函数
   for (const func of activeFunctions) {
-    if (func.type !== "active" || !func.enabled || !func.pattern) {
+    if (func.type !== "active" || !func.enabled || !func.name) {
       continue;
     }
 
     try {
-      // 使用预编译的正则表达式（性能优化）
-      const regex = func._compiledRegex || new RegExp(func.pattern, "g");
+      // 创建简单的正则表达式，只匹配函数名和左括号
+      // 例如：@.ADD( 或 @.SET(
+      const funcNameRegex = new RegExp(`@\\.${func.name}\\s*\\(`, "g");
 
       // 查找所有匹配
       while (true) {
-        const match = regex.exec(text);
+        const match = funcNameRegex.exec(text);
         if (match === null) {
           break;
         }
 
-        // 提取参数(捕获组从索引 1 开始)
-        const args = match.slice(1);
+        // 匹配的起始位置
+        const startIndex = match.index;
+        // 左括号后的位置
+        const afterOpenParen = match.index + match[0].length;
+
+        // 使用 character-parser 提取完整的参数字符串
+        const { argsString, endIndex } = extractFunctionArgs(
+          text.slice(afterOpenParen),
+        );
+
+        if (endIndex === -1) {
+          console.warn(
+            `[ST-VarSystemExtension] 无法找到函数 ${func.name} 的结束括号`,
+          );
+          continue;
+        }
+
+        // 分割参数
+        const argStrings = splitArguments(argsString);
+
+        // 计算完整匹配的文本
+        const fullMatchLength = afterOpenParen - startIndex + endIndex + 1;
+        const raw = text.substr(startIndex, fullMatchLength);
 
         calls.push({
           functionId: func.id,
           functionName: func.name,
-          pattern: func.pattern,
-          args,
-          raw: match[0], // 完整的匹配文本
-          index: match.index, // 在文本中的位置
+          pattern: func.pattern, // 保留原有的 pattern 以保持兼容性
+          args: argStrings,
+          raw, // 完整的匹配文本
+          index: startIndex, // 在文本中的位置
         });
       }
     } catch (error) {
@@ -176,4 +200,110 @@ export function validateArgumentCount(call, functionDef) {
   }
 
   return true;
+}
+
+/**
+ * 提取函数调用的参数字符串（正确处理引号和括号）
+ * @param {string} text - 函数调用后面的文本（从左括号后开始）
+ * @returns {Object} { argsString: 参数字符串, endIndex: 结束位置（右括号的位置） }
+ */
+export function extractFunctionArgs(text) {
+  try {
+    const result = characterParser.parseUntil(text, ")");
+    return {
+      argsString: result.src.trim(),
+      endIndex: result.end, // 右括号的位置
+    };
+  } catch (error) {
+    console.error(
+      "[ST-VarSystemExtension] 提取函数参数失败:",
+      error,
+    );
+    // 回退到简单匹配
+    const simpleMatch = text.match(/^([^)]*)\)/);
+    if (simpleMatch) {
+      return {
+        argsString: simpleMatch[1].trim(),
+        endIndex: simpleMatch[0].length - 1,
+      };
+    }
+    return { argsString: "", endIndex: -1 };
+  }
+}
+
+/**
+ * 分割参数字符串为数组（正确处理引号内的逗号）
+ * @param {string} argsString - 参数字符串，如 '"a","b(c)",123'
+ * @returns {Array<string>} 参数数组
+ */
+export function splitArguments(argsString) {
+  if (!argsString || argsString.trim() === "") {
+    return [];
+  }
+
+  const args = [];
+  let current = "";
+  let depth = 0; // 括号深度
+  let inString = false; // 是否在字符串内
+  let stringChar = null; // 当前字符串的引号类型
+  let escaped = false; // 上一个字符是否是转义符
+
+  for (let i = 0; i < argsString.length; i++) {
+    const char = argsString[i];
+
+    if (escaped) {
+      // 转义字符，直接添加
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      // 转义符
+      current += char;
+      escaped = true;
+      continue;
+    }
+
+    if (!inString) {
+      // 不在字符串内
+      if (char === '"' || char === "'") {
+        // 进入字符串
+        inString = true;
+        stringChar = char;
+        current += char;
+      } else if (char === "(" || char === "[" || char === "{") {
+        // 进入括号
+        depth++;
+        current += char;
+      } else if (char === ")" || char === "]" || char === "}") {
+        // 退出括号
+        depth--;
+        current += char;
+      } else if (char === "," && depth === 0) {
+        // 顶层逗号，分割参数
+        args.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    } else {
+      // 在字符串内
+      if (char === stringChar) {
+        // 退出字符串
+        inString = false;
+        stringChar = null;
+        current += char;
+      } else {
+        current += char;
+      }
+    }
+  }
+
+  // 添加最后一个参数
+  if (current.trim()) {
+    args.push(current.trim());
+  }
+
+  return args;
 }

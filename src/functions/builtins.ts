@@ -20,7 +20,6 @@ export function getBuiltinFunctions() {
       order: 10,
       builtin: true,
       description: '设置变量的值。语法: @.SET("path", value);',
-      pattern: '@\\.SET\\(\\s*"([^"]+)"\\s*,\\s*(.+?)\\s*\\);?',
       executor: `
 // SET(path, value) - 设置变量值
 const [path, valueStr] = args;
@@ -51,7 +50,6 @@ return snapshot;
       builtin: true,
       description:
         '数值加法或数组追加。如果目标是数组则追加，否则作数值加法。语法: @.ADD("path", value);',
-      pattern: '@\\.ADD\\(\\s*"([^"]+)"\\s*,\\s*(.+?)\\s*\\);?',
       executor: `
 // ADD(path, value) - 数值加法或数组追加（兼容 MVU/SAM）
 const [path, valueStr] = args;
@@ -95,7 +93,6 @@ return snapshot;
       order: 30,
       builtin: true,
       description: '数值减法。语法: @.SUB("path", number);',
-      pattern: '@\\.SUB\\(\\s*"([^"]+)"\\s*,\\s*([\\d.\\-]+)\\s*\\);?',
       executor: `
 // SUB(path, number) - 数值减法
 const [path, numStr] = args;
@@ -123,7 +120,6 @@ return snapshot;
       order: 35,
       builtin: true,
       description: '删除数组中指定索引的元素。语法: @.DEL("path", index);',
-      pattern: '@\\.DEL\\(\\s*"([^"]+)"\\s*,\\s*(\\d+)\\s*\\);?',
       executor: `
 // DEL(path, index) - 删除数组元素（SAM）
 const [path, indexStr] = args;
@@ -161,7 +157,6 @@ return snapshot;
       order: 40,
       builtin: true,
       description: '向数组末尾追加元素。语法: @.APPEND("path", value);',
-      pattern: '@\\.APPEND\\(\\s*"([^"]+)"\\s*,\\s*(.+?)\\s*\\);?',
       executor: `
 // APPEND(path, value) - 数组追加（MVU）
 const [path, valueStr] = args;
@@ -199,7 +194,6 @@ return snapshot;
       builtin: true,
       description:
         '从数组中移除元素（按索引或值）。语法: @.REMOVE("path", indexOrValue);',
-      pattern: '@\\.REMOVE\\(\\s*"([^"]+)"\\s*,\\s*(.+?)\\s*\\);?',
       executor: `
 // REMOVE(path, indexOrValue) - 数组删除（MVU）
 const [path, targetStr] = args;
@@ -248,8 +242,6 @@ return snapshot;
       builtin: true,
       description:
         '在数组中查找对象并设置其属性。语法: @.SELECT_SET("path", "selectorKey", "selectorValue", "receiverKey", newValue);',
-      pattern:
-        '@\\.SELECT_SET\\(\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*,\\s*(.+?)\\s*\\);?',
       executor: `
 // SELECT_SET(path, selectorKey, selectorValue, receiverKey, newValue) - SAM
 const [path, selectorKey, selectorValue, receiverKey, newValueStr] = args;
@@ -293,8 +285,6 @@ return snapshot;
       builtin: true,
       description:
         '在数组中查找对象并增加其属性值。语法: @.SELECT_ADD("path", "selectorKey", "selectorValue", "receiverKey", valueToAdd);',
-      pattern:
-        '@\\.SELECT_ADD\\(\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*,\\s*(.+?)\\s*\\);?',
       executor: `
 // SELECT_ADD(path, selectorKey, selectorValue, receiverKey, valueToAdd) - SAM
 const [path, selectorKey, selectorValue, receiverKey, valueToAddStr] = args;
@@ -350,8 +340,6 @@ return snapshot;
       builtin: true,
       description:
         '在数组中查找并删除匹配的对象。语法: @.SELECT_DEL("path", "selectorKey", "selectorValue");',
-      pattern:
-        '@\\.SELECT_DEL\\(\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*,\\s*"([^"]+)"\\s*\\);?',
       executor: `
 // SELECT_DEL(path, selectorKey, selectorValue) - SAM
 const [path, selectorKey, selectorValue] = args;
@@ -387,7 +375,6 @@ return snapshot;
       builtin: true,
       description:
         '数值自增（默认 +1）。语法: @.INC("path") 或 @.INC("path", step);',
-      pattern: '@\\.INC\\(\\s*"([^"]+)"(?:\\s*,\\s*([\\d.\\-]+))?\\s*\\);?',
       executor: `
 // INC(path, step?) - 数值自增（MVU）
 const [path, stepStr] = args;
@@ -416,7 +403,6 @@ return snapshot;
       builtin: true,
       description:
         '数值自减（默认 -1）。语法: @.DEC("path") 或 @.DEC("path", step);',
-      pattern: '@\\.DEC\\(\\s*"([^"]+)"(?:\\s*,\\s*([\\d.\\-]+))?\\s*\\);?',
       executor: `
 // DEC(path, step?) - 数值自减（MVU）
 const [path, stepStr] = args;
@@ -444,7 +430,6 @@ return snapshot;
       order: 110,
       builtin: true,
       description: '删除变量。语法: @.DELETE("path");',
-      pattern: '@\\.DELETE\\(\\s*"([^"]+)"\\s*\\);?',
       executor: `
 // DELETE(path) - 删除变量（MVU）
 const [path] = args;

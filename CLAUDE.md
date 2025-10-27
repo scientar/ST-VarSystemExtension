@@ -120,13 +120,35 @@ The extension reacts to SillyTavern events (from `@sillytavern/script`):
 
 Two function types:
 
-- **Active Functions**: AI explicitly calls them (pattern-matched from AI messages)
+- **Active Functions**: AI explicitly calls them (matched from AI messages by function name)
 - **Passive Functions**: Auto-execute before/after active functions
 
 Function sources:
 
 - **Global Functions**: `extension_settings.st_var_system.functions` (all characters)
 - **Local Functions**: `character.data.extensions.st_var_system.functions` (character-specific)
+
+**Function Parsing (Updated)**:
+
+The system uses `character-parser` library for robust argument extraction:
+
+1. **Function Name Matching**: Matches `@.FUNCTION_NAME(` format
+2. **Smart Argument Extraction**: Correctly handles:
+   - Parentheses in quoted strings: `@.ADD("a", "我(me)的")`
+   - Nested objects: `@.SET("data", {"name": "value"})`
+   - Escaped quotes: `@.ADD("msg", "say \"hi\"")`
+   - Commas in quoted strings: `@.ADD("a", "b,c,d")`
+3. **Sequential Execution**: Multiple calls are executed in text order:
+   ```javascript
+   @.ADD("x", 1); @.SET("y", 2); @.ADD("x", 3);
+   // Executed as: ADD → SET → ADD (result: {x: 4, y: 2})
+   ```
+
+**Pattern Field (Optional)**:
+- The `pattern` field in function definitions is now **optional**
+- If empty, system auto-generates: `@\.FUNCNAME\(`
+- Internal built-in functions don't use the `pattern` field
+- Custom patterns are supported for advanced use cases
 
 Execution flow: `parser.ts` → `registry.ts` → `executor.ts`
 
@@ -180,6 +202,7 @@ So `@sillytavern/script` resolves to `public/script.js`
 - `vue`, `pinia`, `@vueuse/*`
 - `vanilla-jsoneditor`
 - `tailwindcss`
+- `character-parser` (for robust function argument parsing)
 
 ## Key Technical Concepts
 

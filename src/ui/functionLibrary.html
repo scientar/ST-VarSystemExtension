@@ -120,14 +120,18 @@
 
     <!-- 主动函数特有字段 -->
     <div class="var-system-form-group var-system-active-only">
-      <label for="function-pattern-input">正则表达式（匹配格式）</label>
+      <label for="function-pattern-input">匹配模式（可选）</label>
       <input
         type="text"
         id="function-pattern-input"
         class="text_pole code-font"
-        placeholder='例如：@\\.SET\\("([^"]+)",\\s*(.+?)\\);?'
+        placeholder='留空则自动匹配 @.函数名( 格式'
       />
-      <small class="var-system-hint">用于匹配 AI 回复中的函数调用</small>
+      <small class="var-system-hint">
+        系统会自动根据函数名识别 <code>@.函数名(参数)</code> 格式。<br/>
+        高级用户可自定义正则表达式，但通常情况下<strong>留空即可</strong>。<br/>
+        <strong>注意：</strong>内置函数不需要填写此字段。
+      </small>
     </div>
 
     <!-- 被动函数特有字段 -->
