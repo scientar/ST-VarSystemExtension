@@ -143,16 +143,20 @@ export class FunctionRegistry {
 
     // 类型特定字段
     if (func.type === "active") {
-      if (!func.pattern || typeof func.pattern !== "string") {
-        return false;
+      // pattern 字段现在是可选的（会根据 name 自动生成）
+      if (func.pattern !== undefined && func.pattern !== null) {
+        if (typeof func.pattern !== "string") {
+          return false;
+        }
+        // 验证正则表达式是否有效
+        try {
+          new RegExp(func.pattern);
+        } catch (e) {
+          error(`${EXTENSION_LOG_PREFIX} 函数 ${func.name} 的正则表达式无效:`, e);
+          return false;
+        }
       }
-      // 验证正则表达式是否有效
-      try {
-        new RegExp(func.pattern);
-      } catch (e) {
-        error(`${EXTENSION_LOG_PREFIX} 函数 ${func.name} 的正则表达式无效:`, e);
-        return false;
-      }
+      // 如果没有 pattern，会在 parseFunctionCalls 中根据 name 自动生成
     }
 
     if (func.type === "passive") {
