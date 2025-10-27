@@ -72,8 +72,38 @@ export function parseFunctionCalls(text, activeFunctions) {
           continue;
         }
 
-        // 分割参数
-        const argStrings = splitArguments(argsString);
+        // 分割参数并清理外层引号
+        const argStrings = splitArguments(argsString).map((arg) => {
+          const trimmed = arg.trim();
+
+          // 字符串字面量:去掉外层引号(处理转义字符)
+          if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            try {
+              // JSON.parse 会处理转义如 \"
+              return JSON.parse(trimmed);
+            } catch (e) {
+              // 解析失败,简单去引号
+              return trimmed.slice(1, -1);
+            }
+          }
+
+          // 单引号同理
+          if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+            try {
+              const content = trimmed.slice(1, -1);
+              // 处理单引号字符串内的转义
+              const escaped = content
+                .replace(/\\'/g, "'")
+                .replace(/"/g, '\\"');
+              return JSON.parse('"' + escaped + '"');
+            } catch (e) {
+              return trimmed.slice(1, -1);
+            }
+          }
+
+          // 数字/对象/数组字面量保持原样
+          return trimmed;
+        });
 
         // 计算完整匹配的文本
         const fullMatchLength = afterOpenParen - startIndex + endIndex + 1;
