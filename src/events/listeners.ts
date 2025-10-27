@@ -228,8 +228,14 @@ async function handleChatChanged(chatFileName) {
  * **触发时机**：用户删除消息
  * **参数**：message_id (number) - 被删除消息的原 ID
  *
+ * **处理流程**：
+ * 1. 查找删除位置之前最近的 AI 消息
+ * 2. 处理该消息（加载其快照到变量）
+ * 3. 重新处理删除位置之后的后续消息（如果有）
+ *
  * **关键设计**：
  * - **不删除快照**（快照仍在数据库中，因为是 UUID 索引）
+ * - **先加载上一层快照**（确保删除后变量状态正确）
  * - **重新处理后续消息**（从删除点开始重新计算）
  *
  * @param {number} deletedMessageId - 被删除消息的原 ID
@@ -254,14 +260,41 @@ async function handleMessageDeleted(deletedMessageId) {
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
-      console.log(MODULE_NAME, "聊天已清空，无需重新处理");
+      console.log(MODULE_NAME, "聊天已清空");
+      // 刷新楼层快照列表以显示当前状态
+      try {
+        const { loadFloorList } = await import('../ui/messageSnapshots.js');
+        await loadFloorList();
+      } catch (e) {
+        console.warn(MODULE_NAME, '刷新楼层快照列表失败:', e);
+      }
       return;
     }
 
-    // 从被删除消息的位置开始重新处理
+    // 查找删除位置之前最近的 AI 消息
+    let previousAIMessageId = -1;
+    for (let i = deletedMessageId - 1; i >= 0; i--) {
+      const message = chat[i];
+      if (message.is_user === false || message.role === "assistant") {
+        previousAIMessageId = i;
+        break;
+      }
+    }
+
+    // 如果找到，先处理该消息（加载其快照到变量）
+    if (previousAIMessageId >= 0) {
+      console.log(MODULE_NAME, `处理删除位置之前最近的 AI 消息: #${previousAIMessageId}`);
+      await processMessage(previousAIMessageId);
+    } else {
+      console.log(MODULE_NAME, "删除位置之前没有 AI 消息");
+    }
+
+    // 重新处理删除位置之后的消息（如果有）
     // 注意：消息删除后，后续消息的 ID 会前移，所以从 deletedMessageId 开始
-    console.log(MODULE_NAME, `从消息 #${deletedMessageId} 开始重新处理`);
-    await reprocessFromMessage(deletedMessageId);
+    if (deletedMessageId < chat.length) {
+      console.log(MODULE_NAME, `从消息 #${deletedMessageId} 开始重新处理后续消息`);
+      await reprocessFromMessage(deletedMessageId);
+    }
 
     // 处理完成后刷新楼层快照列表
     try {

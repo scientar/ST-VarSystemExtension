@@ -101,7 +101,30 @@ export function parseFunctionCalls(text, activeFunctions) {
             }
           }
 
-          // 数字/对象/数组字面量保持原样
+          // 对象/数组字面量：解析为实际 JavaScript 值
+          if (
+            (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+            (trimmed.startsWith("[") && trimmed.endsWith("]"))
+          ) {
+            try {
+              // 先尝试标准 JSON 格式
+              return JSON.parse(trimmed);
+            } catch (e1) {
+              try {
+                // 回退到 JavaScript 字面量（使用 Function 构造器）
+                return new Function("return " + trimmed)();
+              } catch (e2) {
+                console.warn(
+                  "[ST-VarSystemExtension] 无法解析对象/数组字面量:",
+                  trimmed,
+                );
+                // 解析失败，保持原字符串
+                return trimmed;
+              }
+            }
+          }
+
+          // 数字等其他字面量保持原样
           return trimmed;
         });
 

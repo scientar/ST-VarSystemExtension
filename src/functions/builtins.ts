@@ -22,15 +22,19 @@ export function getBuiltinFunctions() {
       description: '设置变量的值。语法: @.SET("path", value);',
       executor: `
 // SET(path, value) - 设置变量值
-const [path, valueStr] = args;
+const [path, rawValue] = args;
 
-// 解析值（JSON 格式）
-let value;
-try {
-  value = JSON.parse(valueStr);
-} catch (e) {
-  // 解析失败，作为字符串处理（去掉引号）
-  value = valueStr.replace(/^["']|["']$/g, '');
+// 如果已经是对象/数组/数字等（parser 已解析），直接使用
+let value = rawValue;
+
+// 如果是字符串，尝试解析
+if (typeof rawValue === 'string') {
+  try {
+    value = JSON.parse(rawValue);
+  } catch (e) {
+    // 解析失败，去掉引号作为普通字符串
+    value = rawValue.replace(/^["']|["']$/g, '');
+  }
 }
 
 // 使用 lodash 的 set 方法
@@ -52,28 +56,41 @@ return snapshot;
         '数值加法或数组追加。如果目标是数组则追加，否则作数值加法。语法: @.ADD("path", value);',
       executor: `
 // ADD(path, value) - 数值加法或数组追加（兼容 MVU/SAM）
-const [path, valueStr] = args;
+const [path, rawValue] = args;
 
 // 获取当前值
 const currentValue = _.get(snapshot, path);
 
 // 如果是数组，追加元素（SAM 行为）
 if (Array.isArray(currentValue)) {
-  let value;
-  try {
-    value = JSON.parse(valueStr);
-  } catch (e) {
-    value = valueStr.replace(/^["']|["']$/g, '');
+  let value = rawValue;
+
+  // 如果是字符串，尝试解析
+  if (typeof rawValue === 'string') {
+    try {
+      value = JSON.parse(rawValue);
+    } catch (e) {
+      value = rawValue.replace(/^["']|["']$/g, '');
+    }
   }
+
   currentValue.push(value);
   _.set(snapshot, path, currentValue);
   return snapshot;
 }
 
 // 否则作为数值加法（MVU 行为）
-const num = parseFloat(valueStr);
+let num;
+if (typeof rawValue === 'number') {
+  num = rawValue;
+} else if (typeof rawValue === 'string') {
+  num = parseFloat(rawValue);
+} else {
+  num = NaN;
+}
+
 if (isNaN(num)) {
-  console.warn('[ST-VarSystem] ADD: 无效的数值参数:', valueStr);
+  console.warn('[ST-VarSystem] ADD: 无效的数值参数:', rawValue);
   return snapshot;
 }
 
@@ -159,14 +176,18 @@ return snapshot;
       description: '向数组末尾追加元素。语法: @.APPEND("path", value);',
       executor: `
 // APPEND(path, value) - 数组追加（MVU）
-const [path, valueStr] = args;
+const [path, rawValue] = args;
 
-// 解析值
-let value;
-try {
-  value = JSON.parse(valueStr);
-} catch (e) {
-  value = valueStr.replace(/^["']|["']$/g, '');
+// 如果已经是对象/数组/数字等（parser 已解析），直接使用
+let value = rawValue;
+
+// 如果是字符串，尝试解析
+if (typeof rawValue === 'string') {
+  try {
+    value = JSON.parse(rawValue);
+  } catch (e) {
+    value = rawValue.replace(/^["']|["']$/g, '');
+  }
 }
 
 // 获取当前数组
@@ -196,7 +217,7 @@ return snapshot;
         '从数组中移除元素（按索引或值）。语法: @.REMOVE("path", indexOrValue);',
       executor: `
 // REMOVE(path, indexOrValue) - 数组删除（MVU）
-const [path, targetStr] = args;
+const [path, rawValue] = args;
 
 // 获取当前数组
 let arr = _.get(snapshot, path);
@@ -207,19 +228,31 @@ if (!Array.isArray(arr)) {
 }
 
 // 尝试解析为索引（数字）
-const index = parseInt(targetStr);
+let index;
+if (typeof rawValue === 'number') {
+  index = rawValue;
+} else if (typeof rawValue === 'string') {
+  index = parseInt(rawValue);
+} else {
+  index = NaN;
+}
+
 if (!isNaN(index) && index >= 0 && index < arr.length) {
   // 按索引删除
   arr.splice(index, 1);
 } else {
   // 按值删除
-  let value;
-  try {
-    value = JSON.parse(targetStr);
-  } catch (e) {
-    value = targetStr.replace(/^["']|["']$/g, '');
+  let value = rawValue;
+
+  // 如果是字符串，尝试解析
+  if (typeof rawValue === 'string') {
+    try {
+      value = JSON.parse(rawValue);
+    } catch (e) {
+      value = rawValue.replace(/^["']|["']$/g, '');
+    }
   }
-  
+
   const idx = arr.indexOf(value);
   if (idx !== -1) {
     arr.splice(idx, 1);
@@ -244,7 +277,7 @@ return snapshot;
         '在数组中查找对象并设置其属性。语法: @.SELECT_SET("path", "selectorKey", "selectorValue", "receiverKey", newValue);',
       executor: `
 // SELECT_SET(path, selectorKey, selectorValue, receiverKey, newValue) - SAM
-const [path, selectorKey, selectorValue, receiverKey, newValueStr] = args;
+const [path, selectorKey, selectorValue, receiverKey, rawNewValue] = args;
 
 const arr = _.get(snapshot, path);
 if (!Array.isArray(arr)) {
@@ -252,16 +285,19 @@ if (!Array.isArray(arr)) {
   return snapshot;
 }
 
-// 解析新值
-let newValue;
-try {
-  newValue = JSON.parse(newValueStr);
-} catch (e) {
-  newValue = newValueStr.replace(/^["']|["']$/g, '');
+// 解析新值（如果已经是对象/数组/数字等，直接使用）
+let newValue = rawNewValue;
+
+if (typeof rawNewValue === 'string') {
+  try {
+    newValue = JSON.parse(rawNewValue);
+  } catch (e) {
+    newValue = rawNewValue.replace(/^["']|["']$/g, '');
+  }
 }
 
 // 查找匹配的对象
-const targetObj = arr.find(item => 
+const targetObj = arr.find(item =>
   item && typeof item === 'object' && item[selectorKey] === selectorValue
 );
 
@@ -287,7 +323,7 @@ return snapshot;
         '在数组中查找对象并增加其属性值。语法: @.SELECT_ADD("path", "selectorKey", "selectorValue", "receiverKey", valueToAdd);',
       executor: `
 // SELECT_ADD(path, selectorKey, selectorValue, receiverKey, valueToAdd) - SAM
-const [path, selectorKey, selectorValue, receiverKey, valueToAddStr] = args;
+const [path, selectorKey, selectorValue, receiverKey, rawValueToAdd] = args;
 
 const arr = _.get(snapshot, path);
 if (!Array.isArray(arr)) {
@@ -296,7 +332,7 @@ if (!Array.isArray(arr)) {
 }
 
 // 查找匹配的对象
-const targetObj = arr.find(item => 
+const targetObj = arr.find(item =>
   item && typeof item === 'object' && item[selectorKey] === selectorValue
 );
 
@@ -309,18 +345,31 @@ const currentValue = targetObj[receiverKey];
 
 // 如果是数组，追加元素
 if (Array.isArray(currentValue)) {
-  let value;
-  try {
-    value = JSON.parse(valueToAddStr);
-  } catch (e) {
-    value = valueToAddStr.replace(/^["']|["']$/g, '');
+  let value = rawValueToAdd;
+
+  // 如果是字符串，尝试解析
+  if (typeof rawValueToAdd === 'string') {
+    try {
+      value = JSON.parse(rawValueToAdd);
+    } catch (e) {
+      value = rawValueToAdd.replace(/^["']|["']$/g, '');
+    }
   }
+
   currentValue.push(value);
 } else {
   // 否则作为数值加法
-  const num = parseFloat(valueToAddStr);
+  let num;
+  if (typeof rawValueToAdd === 'number') {
+    num = rawValueToAdd;
+  } else if (typeof rawValueToAdd === 'string') {
+    num = parseFloat(rawValueToAdd);
+  } else {
+    num = NaN;
+  }
+
   if (isNaN(num)) {
-    console.warn('[ST-VarSystem] SELECT_ADD: 无效的数值参数:', valueToAddStr);
+    console.warn('[ST-VarSystem] SELECT_ADD: 无效的数值参数:', rawValueToAdd);
     return snapshot;
   }
   targetObj[receiverKey] = (parseFloat(currentValue) || 0) + num;
