@@ -624,23 +624,41 @@ async function exportFunctions() {
  * 生成提示词
  */
 async function generatePrompt() {
-  const functions = await functionRegistry.getEnabledFunctions("active");
+  const functions = functionRegistry.getActiveFunctions();
 
   if (!functions || functions.length === 0) {
     toastr.warning("没有启用的主动函数");
     return;
   }
 
-  let prompt =
-    "<variable_system_functions>\n你可以使用以下函数来更新游戏状态：\n\n";
+  let prompt = `<variable_system_functions>
+## 函数调用规范
+
+你可以使用以下函数来更新游戏状态。
+
+**重要规则：**
+1. 函数调用必须写在一行内，不要在括号内换行
+2. 字符串内的引号必须转义：使用 \\" 而不是 "
+3. 多个函数调用可以连续写，系统会按顺序执行
+4. 函数名不区分大小写（#SET 和 #set 都可以）
+
+**示例：**
+\`\`\`
+#set("player.name", "Alice")
+#add("player.gold", 50)
+#update("player.stats", {"hp": 100, "mp": 50})
+\`\`\`
+
+---
+
+## 可用函数
+
+`;
 
   for (const func of functions) {
-    prompt += `${func.name} // ${func.description || "无说明"}\n`;
-    if (func.pattern) {
-      // 简化的示例（从正则推断）
-      const example = inferExampleFromPattern(func.pattern, func.name);
-      prompt += `示例：${example}\n\n`;
-    }
+    prompt += `### ${func.name}\n\n`;
+    prompt += `${func.description || "无说明"}\n\n`;
+    prompt += `---\n\n`;
   }
 
   prompt += "</variable_system_functions>";
@@ -669,7 +687,7 @@ async function generatePrompt() {
  */
 function inferExampleFromPattern(_pattern, funcName) {
   // 简化实现：直接使用函数名生成基本示例
-  return `@.${funcName}("path.to.var", value);`;
+  return `#${funcName.toLowerCase()}("path.to.var", value);`;
 }
 
 /**

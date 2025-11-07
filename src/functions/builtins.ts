@@ -1,8 +1,10 @@
 /**
- * 内置函数库 - 提供与 MVU/SAM 兼容的基础函数
+ * 内置函数库 - 为文本游戏提供核心变量操作功能
  *
- * MVU (MagVarUpdate) - 使用最广泛
- * SAM (Situational Awareness Manager) - FSM 状态管理
+ * 设计原则：
+ * - 精简实用：只保留最常用的 10 个核心函数
+ * - 避免冗余：功能相近的函数合并或删除
+ * - 智能操作：函数根据目标类型自动选择行为
  */
 
 /**
@@ -11,17 +13,27 @@
  */
 export function getBuiltinFunctions() {
   return [
-    // ==================== SET (MVU/SAM 通用) ====================
+    // ==================== 1. SET - 完全覆盖变量 ====================
     {
-      id: "builtin-set",
-      name: "SET",
-      type: "active",
+      id: 'builtin-set',
+      name: 'SET',
+      type: 'active',
       enabled: true,
       order: 10,
       builtin: true,
-      description: '设置变量的值。语法: @.SET("path", value);',
+      description: `SET - 设置变量的值（完全覆盖）
+
+参数：
+- path (字符串): 变量路径，使用点号分隔，如 "player.hp"
+- value (任意类型): 新的值（字符串、数字、对象、数组等）
+
+示例：
+#set("player.name", "Alice")
+#set("player.hp", 100)
+#set("player.stats", {"str": 10, "agi": 8})
+
+注意：此操作会完全覆盖目标变量。如果只想更新对象的部分键，请使用 UPDATE 函数`,
       executor: `
-// SET(path, value) - 设置变量值
 const [path, rawValue] = args;
 
 // 如果已经是对象/数组/数字等（parser 已解析），直接使用
@@ -44,24 +56,79 @@ return snapshot;
 `,
     },
 
-    // ==================== ADD (MVU/SAM 通用) ====================
+    // ==================== 2. UPDATE - 部分更新对象 ====================
     {
-      id: "builtin-add",
-      name: "ADD",
-      type: "active",
+      id: 'builtin-update',
+      name: 'UPDATE',
+      type: 'active',
       enabled: true,
       order: 20,
       builtin: true,
-      description:
-        '数值加法或数组追加。如果目标是数组则追加，否则作数值加法。语法: @.ADD("path", value);',
+      description: `UPDATE - 部分更新对象（只修改指定的键，保留其他键）
+
+参数：
+- path (字符串): 目标对象的路径
+- updates (对象): 要更新的键值对
+
+示例：
+#update("player.stats", {"hp": 100, "mp": 50})
+// 假设原 stats = {hp: 80, mp: 30, exp: 1200}
+// 结果：stats = {hp: 100, mp: 50, exp: 1200}  ← exp 被保留
+
+#update("npc.alice", {"mood": "happy", "relationship": 75})
+
+注意：如果目标路径不存在或不是对象，会初始化为空对象。此函数只做浅合并（一层深度）`,
       executor: `
-// ADD(path, value) - 数值加法或数组追加（兼容 MVU/SAM）
+const [path, updates] = args;
+
+// 获取当前对象
+let currentObj = _.get(snapshot, path);
+
+// 如果不存在或不是对象，初始化为空对象
+if (!currentObj || typeof currentObj !== 'object' || Array.isArray(currentObj)) {
+  currentObj = {};
+}
+
+// 浅合并（只更新指定的键）
+Object.assign(currentObj, updates);
+_.set(snapshot, path, currentObj);
+
+return snapshot;
+`,
+    },
+
+    // ==================== 3. ADD - 数值加法或数组追加 ====================
+    {
+      id: 'builtin-add',
+      name: 'ADD',
+      type: 'active',
+      enabled: true,
+      order: 30,
+      builtin: true,
+      description: `ADD - 数值加法或数组追加（智能判断目标类型）
+
+参数：
+- path (字符串): 目标变量的路径
+- value (数字|任意类型): 要添加的值
+
+行为：
+- 如果目标是数组：追加元素到末尾
+- 如果目标是数字：执行加法运算（可传负数当减法用）
+
+示例：
+#add("player.gold", 50)          // 金币 +50
+#add("player.gold", -30)         // 金币 -30（传负数当减法）
+#add("inventory.items", "sword") // 数组追加新物品
+#add("party.members", {"name": "Bob", "level": 5})
+
+注意：可以传负数来实现减法效果，无需单独的 SUB 函数`,
+      executor: `
 const [path, rawValue] = args;
 
 // 获取当前值
 const currentValue = _.get(snapshot, path);
 
-// 如果是数组，追加元素（SAM 行为）
+// 如果是数组，追加元素
 if (Array.isArray(currentValue)) {
   let value = rawValue;
 
@@ -79,7 +146,7 @@ if (Array.isArray(currentValue)) {
   return snapshot;
 }
 
-// 否则作为数值加法（MVU 行为）
+// 否则作为数值加法
 let num;
 if (typeof rawValue === 'number') {
   num = rawValue;
@@ -101,182 +168,58 @@ return snapshot;
 `,
     },
 
-    // ==================== SUB (MVU 特有) ====================
+    // ==================== 4. DELETE - 删除变量 ====================
     {
-      id: "builtin-sub",
-      name: "SUB",
-      type: "active",
-      enabled: true,
-      order: 30,
-      builtin: true,
-      description: '数值减法。语法: @.SUB("path", number);',
-      executor: `
-// SUB(path, number) - 数值减法
-const [path, numStr] = args;
-const num = parseFloat(numStr);
-
-if (isNaN(num)) {
-  console.warn('[ST-VarSystem] SUB: 无效的数值参数:', numStr);
-  return snapshot;
-}
-
-const currentValue = _.get(snapshot, path, 0);
-const newValue = (parseFloat(currentValue) || 0) - num;
-_.set(snapshot, path, newValue);
-
-return snapshot;
-`,
-    },
-
-    // ==================== DEL (SAM 特有) ====================
-    {
-      id: "builtin-del",
-      name: "DEL",
-      type: "active",
-      enabled: true,
-      order: 35,
-      builtin: true,
-      description: '删除数组中指定索引的元素。语法: @.DEL("path", index);',
-      executor: `
-// DEL(path, index) - 删除数组元素（SAM）
-const [path, indexStr] = args;
-const index = parseInt(indexStr);
-
-if (isNaN(index) || index < 0) {
-  console.warn('[ST-VarSystem] DEL: 无效的索引:', indexStr);
-  return snapshot;
-}
-
-const arr = _.get(snapshot, path);
-if (!Array.isArray(arr)) {
-  console.warn('[ST-VarSystem] DEL: 目标不是数组:', path);
-  return snapshot;
-}
-
-if (index >= arr.length) {
-  console.warn('[ST-VarSystem] DEL: 索引超出范围:', index);
-  return snapshot;
-}
-
-arr.splice(index, 1);
-_.set(snapshot, path, arr);
-
-return snapshot;
-`,
-    },
-
-    // ==================== APPEND (MVU 特有) ====================
-    {
-      id: "builtin-append",
-      name: "APPEND",
-      type: "active",
+      id: 'builtin-delete',
+      name: 'DELETE',
+      type: 'active',
       enabled: true,
       order: 40,
       builtin: true,
-      description: '向数组末尾追加元素。语法: @.APPEND("path", value);',
+      description: `DELETE - 删除变量
+
+参数：
+- path (字符串): 要删除的变量路径
+
+示例：
+#delete("temp.battle_data")
+#delete("player.buffs.poison")
+
+注意：删除后该路径将不存在，访问会返回 undefined`,
       executor: `
-// APPEND(path, value) - 数组追加（MVU）
-const [path, rawValue] = args;
+const [path] = args;
 
-// 如果已经是对象/数组/数字等（parser 已解析），直接使用
-let value = rawValue;
-
-// 如果是字符串，尝试解析
-if (typeof rawValue === 'string') {
-  try {
-    value = JSON.parse(rawValue);
-  } catch (e) {
-    value = rawValue.replace(/^["']|["']$/g, '');
-  }
-}
-
-// 获取当前数组
-let arr = _.get(snapshot, path);
-
-// 如果不存在或不是数组，创建新数组
-if (!Array.isArray(arr)) {
-  arr = [];
-}
-
-arr.push(value);
-_.set(snapshot, path, arr);
+_.unset(snapshot, path);
 
 return snapshot;
 `,
     },
 
-    // ==================== REMOVE (MVU 特有) ====================
+    // ==================== 5. SELECT_SET - 在数组中查找对象并设置属性 ====================
     {
-      id: "builtin-remove",
-      name: "REMOVE",
-      type: "active",
+      id: 'builtin-select-set',
+      name: 'SELECT_SET',
+      type: 'active',
       enabled: true,
       order: 50,
       builtin: true,
-      description:
-        '从数组中移除元素（按索引或值）。语法: @.REMOVE("path", indexOrValue);',
+      description: `SELECT_SET - 在数组中查找对象并设置其属性
+
+参数：
+- arrayPath (字符串): 目标数组的路径
+- selectorKey (字符串): 用于匹配的键名
+- selectorValue (任意类型): 用于匹配的值
+- targetKey (字符串): 要修改的键名
+- newValue (任意类型): 新的值
+
+示例：
+#select_set("npcs", "name", "Alice", "hp", 100)
+// 在 npcs 数组中找到 name="Alice" 的对象，设置其 hp=100
+
+#select_set("party", "id", "player1", "status", "ready")
+
+注意：此函数会完全覆盖目标键的值。如果要部分更新对象，使用 SELECT_UPDATE`,
       executor: `
-// REMOVE(path, indexOrValue) - 数组删除（MVU）
-const [path, rawValue] = args;
-
-// 获取当前数组
-let arr = _.get(snapshot, path);
-
-if (!Array.isArray(arr)) {
-  console.warn('[ST-VarSystem] REMOVE: 目标不是数组:', path);
-  return snapshot;
-}
-
-// 尝试解析为索引（数字）
-let index;
-if (typeof rawValue === 'number') {
-  index = rawValue;
-} else if (typeof rawValue === 'string') {
-  index = parseInt(rawValue);
-} else {
-  index = NaN;
-}
-
-if (!isNaN(index) && index >= 0 && index < arr.length) {
-  // 按索引删除
-  arr.splice(index, 1);
-} else {
-  // 按值删除
-  let value = rawValue;
-
-  // 如果是字符串，尝试解析
-  if (typeof rawValue === 'string') {
-    try {
-      value = JSON.parse(rawValue);
-    } catch (e) {
-      value = rawValue.replace(/^["']|["']$/g, '');
-    }
-  }
-
-  const idx = arr.indexOf(value);
-  if (idx !== -1) {
-    arr.splice(idx, 1);
-  }
-}
-
-_.set(snapshot, path, arr);
-
-return snapshot;
-`,
-    },
-
-    // ==================== SELECT_SET (SAM 特有) ====================
-    {
-      id: "builtin-select-set",
-      name: "SELECT_SET",
-      type: "active",
-      enabled: true,
-      order: 60,
-      builtin: true,
-      description:
-        '在数组中查找对象并设置其属性。语法: @.SELECT_SET("path", "selectorKey", "selectorValue", "receiverKey", newValue);',
-      executor: `
-// SELECT_SET(path, selectorKey, selectorValue, receiverKey, newValue) - SAM
 const [path, selectorKey, selectorValue, receiverKey, rawNewValue] = args;
 
 const arr = _.get(snapshot, path);
@@ -311,18 +254,39 @@ return snapshot;
 `,
     },
 
-    // ==================== SELECT_ADD (SAM 特有) ====================
+    // ==================== 6. SELECT_ADD - 在数组中查找对象并增加属性 ====================
     {
-      id: "builtin-select-add",
-      name: "SELECT_ADD",
-      type: "active",
+      id: 'builtin-select-add',
+      name: 'SELECT_ADD',
+      type: 'active',
       enabled: true,
-      order: 70,
+      order: 60,
       builtin: true,
-      description:
-        '在数组中查找对象并增加其属性值。语法: @.SELECT_ADD("path", "selectorKey", "selectorValue", "receiverKey", valueToAdd);',
+      description: `SELECT_ADD - 在数组中查找对象并增加其属性值
+
+参数：
+- arrayPath (字符串): 目标数组的路径
+- selectorKey (字符串): 用于匹配的键名
+- selectorValue (任意类型): 用于匹配的值
+- targetKey (字符串): 要修改的键名
+- valueToAdd (数字|任意类型): 要添加的值
+
+行为：
+- 如果目标属性是数组：追加元素
+- 如果目标属性是数字：执行加法（可传负数）
+
+示例：
+#select_add("party", "name", "Alice", "exp", 200)
+// 给 Alice 的经验 +200
+
+#select_add("party", "name", "Alice", "exp", -50)
+// 给 Alice 的经验 -50（传负数）
+
+#select_add("npcs", "id", "merchant_01", "items", "rare_sword")
+// 给商人的物品列表追加新物品
+
+注意：支持传负数来实现减法效果`,
       executor: `
-// SELECT_ADD(path, selectorKey, selectorValue, receiverKey, valueToAdd) - SAM
 const [path, selectorKey, selectorValue, receiverKey, rawValueToAdd] = args;
 
 const arr = _.get(snapshot, path);
@@ -379,18 +343,78 @@ return snapshot;
 `,
     },
 
-    // ==================== SELECT_DEL (SAM 特有) ====================
+    // ==================== 7. SELECT_UPDATE - 在数组中查找对象并部分更新 ====================
     {
-      id: "builtin-select-del",
-      name: "SELECT_DEL",
-      type: "active",
+      id: 'builtin-select-update',
+      name: 'SELECT_UPDATE',
+      type: 'active',
+      enabled: true,
+      order: 70,
+      builtin: true,
+      description: `SELECT_UPDATE - 在数组中查找对象并部分更新其属性
+
+参数：
+- arrayPath (字符串): 目标数组的路径
+- selectorKey (字符串): 用于匹配的键名
+- selectorValue (任意类型): 用于匹配的值
+- updates (对象): 要更新的键值对
+
+示例：
+#select_update("npcs", "name", "Alice", {"hp": 50, "status": "injured", "mood": "angry"})
+// 在 npcs 数组中找到 name="Alice" 的对象，一次性更新多个属性
+
+#select_update("quests", "id", "main_001", {"progress": 75, "step": "find_artifact"})
+
+注意：此函数只更新指定的键，保留对象的其他属性。适合一次性更新多个属性`,
+      executor: `
+const [path, selectorKey, selectorValue, updates] = args;
+
+const arr = _.get(snapshot, path);
+if (!Array.isArray(arr)) {
+  console.warn('[ST-VarSystem] SELECT_UPDATE: 目标不是数组:', path);
+  return snapshot;
+}
+
+// 查找匹配的对象
+const targetObj = arr.find(item =>
+  item && typeof item === 'object' && item[selectorKey] === selectorValue
+);
+
+if (targetObj) {
+  // 浅合并更新
+  Object.assign(targetObj, updates);
+} else {
+  console.warn(\`[ST-VarSystem] SELECT_UPDATE: 未找到匹配对象 \${selectorKey}=\${selectorValue}\`);
+}
+
+return snapshot;
+`,
+    },
+
+    // ==================== 8. SELECT_DEL - 在数组中查找并删除对象 ====================
+    {
+      id: 'builtin-select-del',
+      name: 'SELECT_DEL',
+      type: 'active',
       enabled: true,
       order: 80,
       builtin: true,
-      description:
-        '在数组中查找并删除匹配的对象。语法: @.SELECT_DEL("path", "selectorKey", "selectorValue");',
+      description: `SELECT_DEL - 在数组中查找并删除匹配的对象
+
+参数：
+- arrayPath (字符串): 目标数组的路径
+- selectorKey (字符串): 用于匹配的键名
+- selectorValue (任意类型): 用于匹配的值
+
+示例：
+#select_del("enemies", "id", "goblin_001")
+// 从 enemies 数组中删除 id="goblin_001" 的对象
+
+#select_del("party", "name", "Bob")
+// 从队伍中移除 name="Bob" 的角色
+
+注意：只删除第一个匹配的对象。如果需要删除数组中所有匹配的值，使用 PULL 函数`,
       executor: `
-// SELECT_DEL(path, selectorKey, selectorValue) - SAM
 const [path, selectorKey, selectorValue] = args;
 
 const arr = _.get(snapshot, path);
@@ -400,7 +424,7 @@ if (!Array.isArray(arr)) {
 }
 
 // 查找匹配对象的索引
-const index = arr.findIndex(item => 
+const index = arr.findIndex(item =>
   item && typeof item === 'object' && item[selectorKey] === selectorValue
 );
 
@@ -414,76 +438,107 @@ return snapshot;
 `,
     },
 
-    // ==================== INC (MVU 特有) ====================
+    // ==================== 9. PUSH_UNIQUE - 去重追加到数组 ====================
     {
-      id: "builtin-inc",
-      name: "INC",
-      type: "active",
+      id: 'builtin-push-unique',
+      name: 'PUSH_UNIQUE',
+      type: 'active',
       enabled: true,
       order: 90,
       builtin: true,
-      description:
-        '数值自增（默认 +1）。语法: @.INC("path") 或 @.INC("path", step);',
-      executor: `
-// INC(path, step?) - 数值自增（MVU）
-const [path, stepStr] = args;
-const step = stepStr ? parseFloat(stepStr) : 1;
+      description: `PUSH_UNIQUE - 只在数组中不存在时才追加元素（去重）
 
-if (isNaN(step)) {
-  console.warn('[ST-VarSystem] INC: 无效的步进值:', stepStr);
-  return snapshot;
+参数：
+- arrayPath (字符串): 目标数组的路径
+- value (任意类型): 要添加的值
+
+示例：
+#push_unique("achievements", "dragon_slayer")
+// 只有当 "dragon_slayer" 不在数组中时才添加
+
+#push_unique("unlocked_areas", "dark_forest")
+#push_unique("inventory.keys", {"id": "rusty_key", "name": "生锈的钥匙"})
+
+注意：使用深度比较判断是否存在。对于对象，会比较所有字段`,
+      executor: `
+const [path, rawValue] = args;
+
+let arr = _.get(snapshot, path);
+
+// 如果不存在或不是数组，初始化
+if (!Array.isArray(arr)) {
+  arr = [];
 }
 
-const currentValue = _.get(snapshot, path, 0);
-const newValue = (parseFloat(currentValue) || 0) + step;
-_.set(snapshot, path, newValue);
+// 解析值
+let value = rawValue;
+if (typeof rawValue === 'string') {
+  try {
+    value = JSON.parse(rawValue);
+  } catch (e) {
+    value = rawValue.replace(/^["']|["']$/g, '');
+  }
+}
+
+// 检查是否已存在（深度比较）
+const exists = arr.some(item => _.isEqual(item, value));
+
+if (!exists) {
+  arr.push(value);
+  _.set(snapshot, path, arr);
+}
 
 return snapshot;
 `,
     },
 
-    // ==================== DEC (MVU 特有) ====================
+    // ==================== 10. PULL - 从数组移除所有匹配值 ====================
     {
-      id: "builtin-dec",
-      name: "DEC",
-      type: "active",
+      id: 'builtin-pull',
+      name: 'PULL',
+      type: 'active',
       enabled: true,
       order: 100,
       builtin: true,
-      description:
-        '数值自减（默认 -1）。语法: @.DEC("path") 或 @.DEC("path", step);',
-      executor: `
-// DEC(path, step?) - 数值自减（MVU）
-const [path, stepStr] = args;
-const step = stepStr ? parseFloat(stepStr) : 1;
+      description: `PULL - 从数组中移除所有匹配的值（不是索引）
 
-if (isNaN(step)) {
-  console.warn('[ST-VarSystem] DEC: 无效的步进值:', stepStr);
+参数：
+- arrayPath (字符串): 目标数组的路径
+- value (任意类型): 要移除的值
+
+示例：
+#pull("inventory.consumables", "health_potion")
+// 移除所有 "health_potion"（如果有多个会全部删除）
+
+#pull("player.buffs", "poison")
+// 移除 poison buff
+
+#pull("quest_log", {"id": "quest_001", "status": "completed"})
+// 移除特定对象（深度比较）
+
+注意：这是 SELECT_DEL 的通用版本，可作用于任意类型的数组，不限于对象数组`,
+      executor: `
+const [path, rawValueToRemove] = args;
+
+let arr = _.get(snapshot, path);
+if (!Array.isArray(arr)) {
+  console.warn('[ST-VarSystem] PULL: 目标不是数组:', path);
   return snapshot;
 }
 
-const currentValue = _.get(snapshot, path, 0);
-const newValue = (parseFloat(currentValue) || 0) - step;
-_.set(snapshot, path, newValue);
+// 解析要移除的值
+let valueToRemove = rawValueToRemove;
+if (typeof rawValueToRemove === 'string') {
+  try {
+    valueToRemove = JSON.parse(rawValueToRemove);
+  } catch (e) {
+    valueToRemove = rawValueToRemove.replace(/^["']|["']$/g, '');
+  }
+}
 
-return snapshot;
-`,
-    },
-
-    // ==================== DELETE (MVU 特有) ====================
-    {
-      id: "builtin-delete",
-      name: "DELETE",
-      type: "active",
-      enabled: true,
-      order: 110,
-      builtin: true,
-      description: '删除变量。语法: @.DELETE("path");',
-      executor: `
-// DELETE(path) - 删除变量（MVU）
-const [path] = args;
-
-_.unset(snapshot, path);
+// 移除所有匹配的值（深度比较）
+const filtered = arr.filter(item => !_.isEqual(item, valueToRemove));
+_.set(snapshot, path, filtered);
 
 return snapshot;
 `,
@@ -502,11 +557,8 @@ export function initBuiltinFunctions(registry) {
     registry.upsertGlobalFunction(func);
   }
 
-  console.log("[ST-VarSystemExtension] 已注册", builtins.length, "个内置函数");
-  console.log(
-    "[ST-VarSystemExtension] MVU 兼容函数: SET, ADD, SUB, APPEND, REMOVE, INC, DEC, DELETE",
-  );
-  console.log(
-    "[ST-VarSystemExtension] SAM 兼容函数: SET, ADD, DEL, SELECT_SET, SELECT_ADD, SELECT_DEL",
-  );
+  console.log('[ST-VarSystemExtension] 已注册', builtins.length, '个内置函数');
+  console.log('[ST-VarSystemExtension] 核心函数: SET, UPDATE, ADD, DELETE');
+  console.log('[ST-VarSystemExtension] SELECT 系列: SELECT_SET, SELECT_ADD, SELECT_UPDATE, SELECT_DEL');
+  console.log('[ST-VarSystemExtension] 数组操作: PUSH_UNIQUE, PULL');
 }

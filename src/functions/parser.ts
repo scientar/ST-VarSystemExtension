@@ -31,8 +31,8 @@ export function parseFunctionCalls(text, activeFunctions) {
 
     try {
       // 创建简单的正则表达式，只匹配函数名和左括号
-      // 例如：@.ADD( 或 @.SET(
-      const funcNameRegex = new RegExp(`@\\.${func.name}\\s*\\(`, "g");
+      // 例如：#ADD( 或 #set(（忽略大小写）
+      const funcNameRegex = new RegExp(`#${func.name}\\s*\\(`, "gi");
 
       // 添加保护：限制单个函数的最大匹配次数，防止意外的无限循环
       let matchCount = 0;
